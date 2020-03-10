@@ -1,5 +1,5 @@
 <template>
-  <div class="index">
+  <div class="portal">
     <el-container>
       <el-header>
         <h1>Portal导航</h1>
@@ -42,11 +42,10 @@
 <script>
 import nav from "../assets/nav.json";
 export default {
-  name: "Index",
+  name: "Portal",
   data() {
     return {
       nav,
-      url: "http://yuntu.wzer.net/images/logo.jpg"
     };
   },
   created() {
@@ -55,7 +54,7 @@ export default {
 };
 </script>
 <style scoped>
-.index {
+.portal {
   padding: 0 6%;
 }
 .tab {
