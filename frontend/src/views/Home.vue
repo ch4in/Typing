@@ -1,14 +1,8 @@
 <template>
   <div class="home">
-    <el-menu
-      :default-active="this.$route.path"
-      class="el-menu-demo"
-      mode="horizontal"
-
-      router
-    >
+    <el-menu :default-active="activeIndex" mode="horizontal" router>
       <el-menu-item id="logo">
-        <img alt="Typing" src="../assets/logo.png" />
+        <img alt="Typing" src="@/assets/logo.png" />
         <h2>Typing</h2>
       </el-menu-item>
 
@@ -28,19 +22,15 @@ export default {
   name: "Home",
   data() {
     return {
- 
+      activeIndex: ""
     };
   },
-  methods: {
-
-  },
+  methods: {},
+  component: {},
   created() {
     document.title = "Typing - 打字测试";
- 
   },
-  mounted() {
-    
-  }
+  mounted() {}
 };
 </script>
 

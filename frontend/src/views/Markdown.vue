@@ -1,7 +1,6 @@
 <template>
   <div>
-    <mavon-editor v-model="value" />
-    <mavon-editor ref="md" @imgAdd="$imgAdd" @imgDel="$imgDel"></mavon-editor>
+    <mavon-editor v-model="value" ref="md" @imgAdd="$imgAdd" @imgDel="$imgDel"></mavon-editor>
     <mavon-editor
       class="md"
       :value="value"

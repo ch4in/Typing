@@ -9,12 +9,12 @@
         <p>Stay Hungry, Stay Foolish.</p>
       </marquee>
 
-      <div v-for="g in nav" :key="g">
+      <div v-for="(g, gi) in nav" :key="gi">
         <el-divider content-position="left">
           <h2>{{g.title}}</h2>
         </el-divider>
         <el-row :gutter="12">
-          <el-col v-for="c in g.content" :key="c" :span="6">
+          <el-col v-for="(c,ci) in g.content" :key="ci" :span="6">
             <a :href="c.link" target="_blank">
               <el-card shadow="hover" class="tab">
                 <el-row class="tab-header">{{c.name}}</el-row>

@@ -21,7 +21,7 @@ export default new Router({
       path: '/md',
       component: Markdown,
       meta: {
-        title: 'Portal导航'
+        title: '任务单'
       }
     },
     {
@@ -31,16 +31,6 @@ export default new Router({
           path: 'testList',
           name: 'testList',
           component: TestList
-        },
-        {
-          path: 'finger',
-          name: 'finger',
-          component: () => import( /* webpackChunkName: "Finger" */ './components/Finger.vue')
-        },
-        {
-          path: 'word',
-          name: 'word',
-          component: () => import( /* webpackChunkName: "Word" */ './components/Word.vue')
         },
         {
           path: 'articleList',
@@ -56,6 +46,16 @@ export default new Router({
           path: 'rank',
           name: 'rank',
           component: () => import( /* webpackChunkName: "RankList" */ './components/RankList.vue')
+        },
+        {
+          path: 'finger',
+          name: 'finger',
+          component: () => import( /* webpackChunkName: "Finger" */ './components/Finger.vue')
+        },
+        {
+          path: 'word',
+          name: 'word',
+          component: () => import( /* webpackChunkName: "Word" */ './components/Word.vue')
         },
         {
           path: '',

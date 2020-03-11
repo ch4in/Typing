@@ -98,7 +98,7 @@ export default {
   },
   components: { Recorder, SubmitDialog },
   created() {
-    if (this.$store.state.article["title"] == "") this.$router.push("/");
+    if (this.$store.state.article["title"] == "") this.$router.push("/typing");
   },
   mounted() {
     // if (document.all) {
@@ -235,7 +235,7 @@ export default {
             this.isDisabled[i] = false;
             i++;
           }
-          if(this.inputList[i-1].length == this.lineList[i-1].length){
+          if(i>0 && i<this.inputList.length && this.inputList[i-1].length == this.lineList[i-1].length){
             this.isDisabled[i]= false
             this.focusedLine = i
           }
