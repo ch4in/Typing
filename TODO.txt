@@ -1,13 +1,19 @@
-计时精度 BUG：不断按暂停，时间不减少
+info tech course support system
+
+Typing:
 文章列表显示文章总字数
 是否可暂停
 暂停时长1分钟
-字体
 
+Done:
+- 字体区分lI
+
+
+
+
+TODO:
 平时作业上交统计系统 
 markdown任务单 
 改变的motto
-
-info tech course support system
 
 django admin/admin

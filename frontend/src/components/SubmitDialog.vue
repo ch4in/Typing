@@ -64,15 +64,16 @@ export default {
             title: this.$store.state.article.title,
             stuName: this.name,
             speed: this.testInfo.speed,
-            correctRate: this.testInfo.correctRate
+            correctRate: this.testInfo.correctRate,
+            score: this.testInfo.score
           });
         } else {
           params = new URLSearchParams({
             testID: this.$store.state.testID,
             stuName: this.name,
             speed: this.testInfo.speed,
-            // completionRate: this.testInfo.percentage,
-            correctRate: this.testInfo.correctRate
+            correctRate: this.testInfo.correctRate,
+            score: this.testInfo.score
           });
         }
         var _this = this;

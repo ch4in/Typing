@@ -36,7 +36,7 @@
 </template>
 
 <script>
-//
+// 
 import Recorder from "@/components/Recorder";
 import SubmitDialog from "@/components/SubmitDialog";
 export default {
@@ -61,7 +61,8 @@ export default {
       timeStr: "",
       percentage: 0,
       clock: "",
-      correctRate: 0
+      correctRate: 0,
+      score: 0
     };
   },
   computed: {
@@ -92,6 +93,7 @@ export default {
         percentage: this.percentage,
         // testInfo: this.articleType,
         correctRate: this.correctRate,
+        score: this.score,
         type: this.$store.state.article["type"]
       };
     }
@@ -271,14 +273,17 @@ export default {
       } else {
         this.correctRate = 100;
       }
+      // 计算分数
+      this.score = this.correctRate * this.speed / 100;
       this.isDialogVisible = true;
       // this.$router.push('/home/submit')
     }
   },
   watch: {
     inputList(ov, nv) {
-      this.percentage =
-        Math.floor((this.typedWordNum / this.totalWordNum) * 1000) / 10;
+      var p = Math.floor((this.typedWordNum / this.totalWordNum) * 1000) / 10;
+      this.percentage = p <= 100 ? p : 100;
+        
       var i = this.focusedLine;
       // 当前行正确、错误高亮显示
       for (var j = 0; j < this.lineList[i].length; j++) {

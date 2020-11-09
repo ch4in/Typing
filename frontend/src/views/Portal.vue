@@ -6,7 +6,7 @@
       </el-header>
 
       <marquee direction="left" onmouseover="this.stop()" onmouseout="this.start()">
-        <p>Stay Hungry, Stay Foolish.</p>
+        <p></p>
       </marquee>
 
       <div v-for="(g, gi) in nav" :key="gi">

@@ -25,7 +25,7 @@ export default new Router({
       }
     },
     {
-      path: '/typing/',
+      path: '*',
       component: Home,
       children: [{
           path: 'testList',
@@ -69,7 +69,7 @@ export default new Router({
     },
     {
       path: '*',
-      component: Portal
+      component: TestList
     }
   ]
 })

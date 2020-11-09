@@ -6,6 +6,7 @@
       <el-table-column prop="stuName" label="姓名"></el-table-column>
       <el-table-column prop="correctRate" label="正确率%"></el-table-column>
       <el-table-column prop="speed" label="速度"></el-table-column>
+      <el-table-column prop="score" label="得分"></el-table-column>
     </el-table>
     <el-button class="btnBack" @click="handleBack">返回</el-button>
   </div>

@@ -43,6 +43,7 @@ class testResult(models.Model):
     speed = models.IntegerField('速度', default=0)
     # completionRate = models.IntegerField('完成率', default=0)
     correctRate = models.DecimalField('正确率', max_digits=4, decimal_places=1, default=0)
+    score = models.DecimalField('得分', max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
         return self.stuName
@@ -57,7 +58,8 @@ class practiceResult(models.Model):
         article, on_delete=models.CASCADE, related_name='practice_rank', verbose_name='文章')
     stuName = models.CharField('姓名', max_length=4)
     speed = models.IntegerField('速度', default=0)
-    correctRate = models.IntegerField('正确率', default=0)
+    correctRate = models.DecimalField('正确率', max_digits=4, decimal_places=1, default=0)
+    score = models.DecimalField('得分', max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
         return self.stuName

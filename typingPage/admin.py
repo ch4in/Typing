@@ -1,9 +1,8 @@
 from django.contrib import admin
 # from django.contrib.auth.models import Group, User
-
 # admin.site.unregister(Group)
 # admin.site.unregister(User)
-# Register your models here.
+
 from typingPage import models
 
 
@@ -44,39 +43,33 @@ from typingPage import models
 
 
 class articleAdmin(admin.ModelAdmin):
-    list_display = ("title", 'content', 'type', 'isVisible')    # 显示的列
+    list_display = ("title", 'content', 'type', 'isVisible')
     fields = ('title', 'content', 'type', 'isVisible')
-    search_fields = ('title', 'type', 'isVisible')      # 可以搜索的字段
+    search_fields = ('title',)
 
 
 class testAdmin(admin.ModelAdmin):
     list_display = ('testID', "school", 'classInfo',
-                    'articleID', 'testTotalTime','entryCode')    # 显示的列
-    fields = ('school', 'classInfo', 'articleID', 'testTotalTime','entryCode')
+                    'articleID', 'testTotalTime','entryCode')
+    fields = ('school', 'classInfo', 'articleID', 'testTotalTime', 'entryCode')
 
 
 class testResultAdmin(admin.ModelAdmin):
-    # actions = ["saveexecl"]                 # 自定义的action（导出到excel表格）
     list_display = ("testID", "stuName", 'speed',
-                    'correctRate')    # 显示的列
-    fields = ("testID", 'stuName', 'speed',  'correctRate')
-    search_fields = ('stuName',)      # 可以搜索的字段
-    # date_hierarchy = 'typing_date'      # 按照日期显示
-    # list_filter = ("stuID", 'typing_date')         # 过滤条件
+                    'correctRate', 'score')
+    fields = ("testID", 'stuName', 'speed',  'correctRate', 'score')
+    search_fields = ('stuName',)
     list_filter = ("testID", )
-    list_per_page = 50  # 每页显示50条，太多了可能会出现服务器崩掉的情况
+    list_per_page = 50
 
 
 class practiceResultAdmin(admin.ModelAdmin):
-    # actions = ["saveexecl"]                 # 自定义的action（导出到excel表格）
     list_display = ("articleID", "stuName", 'speed',
-                    'correctRate')    # 显示的列
-    fields = ("articleID", 'stuName', 'speed',  'correctRate')
-    search_fields = ('stuName',)      # 可以搜索的字段
-    # date_hierarchy = 'typing_date'      # 按照日期显示
-    # list_filter = ("stuID", 'typing_date')         # 过滤条件
+                    'correctRate', 'score')
+    fields = ("articleID", 'stuName', 'speed', 'correctRate', 'score')
+    search_fields = ('stuName',)
     list_filter = ("articleID", )
-    list_per_page = 50  # 每页显示50条，太多了可能会出现服务器崩掉的情况
+    list_per_page = 50
 
 
 admin.site.register(models.article, articleAdmin)

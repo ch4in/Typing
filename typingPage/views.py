@@ -16,17 +16,6 @@ class DecimalEncoder(json.JSONEncoder):
 def login(request):
     return render(request, 'typingPage/login.html')
 
-# def submit(request):
-#     r = int(request.GET['right'])
-#     e = int(request.GET['error'])
-#     rate = round(r / (r + e) * 100, 2)
-#     t = typingInfo(stuID=request.GET['stuID'], right=request.GET['right'],
-#                    error=request.GET['error'], rate=rate, typing_date=timezone.now())
-#     t.save()
-#     return HttpResponse('OK')
-
-#############
-
 
 def get_articleList(request):
     articleSet = article.objects.filter(isVisible=True)
@@ -79,8 +68,9 @@ def post_testResult(request):
             testID=int(request.POST['testID']))
         tr.stuName = request.POST['stuName']
         tr.speed = int(request.POST['speed'])
-        # tr.completionRate = int(request.POST['completionRate'])
         tr.correctRate = float(request.POST['correctRate'])
+        tr.score = float(request.POST['score'])
+        print('score', tr.score)
         tr.save()
         return HttpResponse("OK")
     else:
@@ -90,6 +80,7 @@ def post_testResult(request):
         pr.stuName = request.POST['stuName']
         pr.speed = int(request.POST['speed'])
         pr. correctRate = float(request.POST['correctRate'])
+        pr.score = float(request.POST['score'])
         pr.save()
         return HttpResponse("OK")
 
@@ -99,18 +90,18 @@ def get_rankList(request):
     if request.GET.get('isPractice') == 'false':
         t = test.objects.get(testID=request.GET['ID'])
         rankListSet = testResult.objects.filter(
-            testID=t).order_by('-correctRate', '-speed', 'stuName')
+            testID=t).order_by('-score', '-correctRate', '-speed', 'stuName')
     else:
         a = article.objects.get(title=str(request.GET['ID']))
         rankListSet = practiceResult.objects.filter(
-            articleID=a).order_by('-correctRate', '-speed', 'stuName')
-        pass
+            articleID=a).order_by('-score', '-correctRate', '-speed', 'stuName')
     res = []
     for (x, i) in enumerate(rankListSet):
         t = {}
         t['stuName'] = i.stuName
         t['speed'] = i.speed
         t['correctRate'] = i.correctRate
+        t['score'] = i.score
         res.append(t)
     return HttpResponse(json.dumps(res, cls=DecimalEncoder), content_type="application/json")
 
