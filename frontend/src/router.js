@@ -25,7 +25,7 @@ export default new Router({
       }
     },
     {
-      path: '*',
+      path: '/typing',
       component: Home,
       children: [{
           path: 'testList',
@@ -68,8 +68,8 @@ export default new Router({
       ]
     },
     {
-      path: '*',
-      component: TestList
+      path: '/',
+      redirect:'/typing',
     }
   ]
 })
