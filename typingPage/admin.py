@@ -55,12 +55,18 @@ class testAdmin(admin.ModelAdmin):
 
 
 class testResultAdmin(admin.ModelAdmin):
-    list_display = ("testID", "stuName", 'speed',
+    list_display = ("testID", "test_school", "test_class", "stuName", 'speed',
                     'correctRate', 'score')
-    fields = ("testID", 'stuName', 'speed',  'correctRate', 'score')
+    fields = ("testID",  "test_school", "test_class", 'stuName', 'speed', 'correctRate', 'score')
     search_fields = ('stuName',)
     list_filter = ("testID", )
     list_per_page = 50
+
+    def test_school(self, obj):
+        return obj.testID.school
+
+    def test_class(self, obj):
+        return obj.testID.classInfo
 
 
 class practiceResultAdmin(admin.ModelAdmin):

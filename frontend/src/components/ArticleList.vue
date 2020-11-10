@@ -97,6 +97,12 @@ export default {
     handleRank(index, row) {
       this.$store.state.article.title = this.tableData[index].title;
       this.$store.state.isPractice = true;
+      if(row.type == "中文"){
+        this.$store.state.article.type = 'Cn'
+      }
+      else if(row.type == "英文"){
+        this.$store.state.article.type = 'En'
+      }
       this.$router.push("rank");
     },
     filterTag(value, row) {

@@ -93,6 +93,12 @@ export default {
     },
     handleRank(index, row) {
       this.$store.state.testID = this.tableData[index].testID;
+      if(row.type == "中文"){
+        this.$store.state.article.type = 'Cn'
+      }
+      else if(row.type == "英文"){
+        this.$store.state.article.type = 'En'
+      }
       this.$store.state.isPractice = false;
       this.$router.push("rank");
     }

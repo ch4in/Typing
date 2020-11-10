@@ -28,14 +28,10 @@ export default {
   data() {
     return {
       tableData: [],
-      r1: 0,
-      r2: 0,
-      r3:0,
     };
   },
   mounted() {
-    var _this = this,
-      id;
+    var _this = this, id;
     if (this.$store.state.isPractice) {
       id = this.$store.state.article.title;
     } else {

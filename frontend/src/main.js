@@ -22,16 +22,15 @@ router.beforeEach((to, from, next) => {
   if (to.meta.title) {
     document.title = to.meta.title
   }
+  if (store.state.name !== '') {
+        next()
+      } else {
+        if (to.path === '/login') {
+          next()
+        } else {
+          next('/login')
+        }
+      }
   next()
 })
-// router.beforeEach((to, from, next) => {
-//   if (store.state.username !== '') {
-//     next()
-//   } else {
-//     if (to.path === '/login') {
-//       next()
-//     } else {
-//       next('/login')
-//     }
-//   }
-// })
+

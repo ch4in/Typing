@@ -29,7 +29,7 @@
     </el-row>
     <el-row>
       <el-col>
-        <el-button type="primary" @click="loginfn" style="width:250px">进入</el-button>
+        <el-button type="primary" @click="loginFn" style="width:250px">进入</el-button>
       </el-col>
     </el-row>
   </div>
@@ -44,18 +44,18 @@ export default {
     return {
       uname: "",
       select: "沙城一小",
-      options: ["沙城一小", "XX学校"],
+      options: ["沙城一小"],
       error: 0
     };
   },
   methods: {
-    loginfn() {
+    loginFn() {
       if (this.uname.length >= 2 && this.uname.length <= 4) {
         this.error = 0;
         // 登录验证
-        store.state.school = this.select;
-        store.state.username = this.uname;
-        this.$router.push("/home/selection");
+        this.$store.state.school = this.select;
+        store.state.name = this.uname;
+        this.$router.push("/typing");
       } else {
         this.error = 1;
       }

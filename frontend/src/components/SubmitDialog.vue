@@ -40,11 +40,13 @@ export default {
   props: ["visible", "testInfo"],
   data() {
     return {
-      name: "",
       isNameError: false
     };
   },
   computed: {
+    name(){
+      return this.$store.state.name;
+    },
     time() {
       var m = Math.floor(this.testInfo.time / 60);
       var s = Math.floor(this.testInfo.time) - m * 60;

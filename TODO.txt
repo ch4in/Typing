@@ -17,5 +17,6 @@ TODO:
 平时作业上交统计系统 
 markdown任务单 
 改变的motto
+在线聊天室
 
 django admin/admin

@@ -45,8 +45,7 @@ class testResult(models.Model):
     correctRate = models.DecimalField('正确率', max_digits=4, decimal_places=1, default=0)
     score = models.DecimalField('得分', max_digits=10, decimal_places=2, default=0)
 
-    def __str__(self):
-        return self.stuName
+
 
     class Meta:
         verbose_name = '测试结果'

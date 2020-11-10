@@ -23,6 +23,12 @@ export default new Router({
       meta: {
         title: '任务单'
       }
+    },{
+      path: '/login',
+      component: Login,
+      meta: {
+        title: '登录'
+      }
     },
     {
       path: '/typing',
@@ -69,7 +75,7 @@ export default new Router({
     },
     {
       path: '/',
-      redirect:'/typing',
+      redirect:'/login',
     }
   ]
 })
