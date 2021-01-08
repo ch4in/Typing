@@ -18,19 +18,15 @@ new Vue({
 }).$mount('#app')
 
 router.beforeEach((to, from, next) => {
-  /* 路由发生变化修改页面title */
-  if (to.meta.title) {
-    document.title = to.meta.title
-  }
   if (store.state.name !== '') {
-        next()
-      } else {
-        if (to.path === '/login') {
-          next()
-        } else {
-          next('/login')
-        }
-      }
+    next()
+  } else {
+    if (to.path === '/login') {
+      next()
+    } else {
+      next({ path: '/login' })
+    }
+  }
   next()
 })
 

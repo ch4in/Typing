@@ -57,7 +57,7 @@ class testAdmin(admin.ModelAdmin):
 class testResultAdmin(admin.ModelAdmin):
     list_display = ("testID", "test_school", "test_class", "stuName", 'speed',
                     'correctRate', 'score')
-    fields = ("testID",  "test_school", "test_class", 'stuName', 'speed', 'correctRate', 'score')
+    fields = ("testID", 'stuName', 'speed', 'correctRate', 'score')
     search_fields = ('stuName',)
     list_filter = ("testID", )
     list_per_page = 50

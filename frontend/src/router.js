@@ -5,6 +5,7 @@ import Home from './views/Home.vue'
 import Portal from './views/Portal.vue'
 import Selection from './components/Selection.vue'
 import TestList from './components/TestList.vue'
+import ArticleList from './components/ArticleList.vue'
 import Markdown from './views/Markdown.vue'
 
 Vue.use(Router)
@@ -41,7 +42,7 @@ export default new Router({
         {
           path: 'articleList',
           name: 'articleList',
-          component: () => import( /* webpackChunkName: "ArticleList" */ './components/ArticleList.vue')
+          component: ArticleList
         },
         {
           path: 'article',
@@ -65,11 +66,11 @@ export default new Router({
         },
         {
           path: '',
-          redirect: 'testList'
+          redirect: 'articleList'
         },
         {
           path: '*',
-          redirect: 'testList'
+          redirect: 'articleList'
         }
       ]
     },

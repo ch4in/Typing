@@ -2,7 +2,10 @@
   <div class="portal">
     <el-container>
       <el-header>
-        <h1>Portal导航</h1>
+        <el-row>
+          <el-col :offset="10" :span="1"><img src="@/assets/portal.png" style="width:44px"></img></el-col>
+          <el-col :span="1" style="font-size:38px">Portal</el-col>
+        </el-row>
       </el-header>
 
       <marquee direction="left" onmouseover="this.stop()" onmouseout="this.start()">
@@ -13,8 +16,8 @@
         <el-divider content-position="left">
           <h2>{{g.title}}</h2>
         </el-divider>
-        <el-row :gutter="12">
-          <el-col v-for="(c,ci) in g.content" :key="ci" :span="6">
+        <el-row :gutter="10">
+          <el-col v-for="(c,ci) in g.content" :key="ci" :span="8">
             <a :href="c.link" target="_blank">
               <el-card shadow="hover" class="tab">
                 <el-row class="tab-header">{{c.name}}</el-row>
@@ -56,6 +59,11 @@ export default {
 <style scoped>
 .portal {
   padding: 0 6%;
+}
+el-header span{
+  display:flexbox;
+  height: 100px;
+  width: 100px;
 }
 .tab {
   margin-top: 10px;

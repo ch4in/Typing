@@ -70,7 +70,6 @@ def post_testResult(request):
         tr.speed = int(request.POST['speed'])
         tr.correctRate = float(request.POST['correctRate'])
         tr.score = float(request.POST['score'])
-        print('score', tr.score)
         tr.save()
         return HttpResponse("OK")
     else:

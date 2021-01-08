@@ -54,13 +54,16 @@ export default {
         this.error = 0;
         // 登录验证
         this.$store.state.school = this.select;
-        store.state.name = this.uname;
+        store.commit('set_name', this.uname);
         this.$router.push("/typing");
       } else {
         this.error = 1;
       }
     }
-  }
+  },
+  created() {
+    document.title = 'Login登录'
+  },
 };
 </script>
 

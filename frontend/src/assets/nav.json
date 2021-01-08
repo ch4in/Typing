@@ -1,61 +1,68 @@
-[{
+[
+    {
         "title": "常用平台",
-        "content": [{
-            "name": "温州中小学云图书馆",
-            "info": "云图书馆",
-            "link": "http://yuntu.wzer.net/",
-            "account":"1",
-            "tutorial": "https://baidu.com/"
-        }, {
-            "name": "青骄第二课堂",
-            "info": "观看视频动画，学习禁毒知识",
-            "link": "https://2-class.com/",
-            "tutorial": "https://baidu.com/",
-            "account":"https://baidu.com/"
-        }]
+        "content": [
+            {
+                "name": "温州中小学云图书馆",
+                "info": "云图书馆",
+                "link": "http://yuntu.wzer.net/",
+                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
+                "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+            },
+            {
+                "name": "青骄第二课堂",
+                "info": "观看视频动画，学习禁毒知识",
+                "link": "https://2-class.com/",
+                "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
+                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+            }
+        ]
     },
     {
         "title": "打字",
-        "content": [{
-            "name": "Typing",
-            "info": "打字测试",
-            "link": "#/typing"
-        },{
-            "name": "ZType",
-            "info": "打字游戏 - Type to Shoot",
-            "link": "https://zty.pe/"
-        }]
+        "content": [
+            {
+                "name": "Typing",
+                "info": "打字测试",
+                "link": "#/login"
+            },
+            {
+                "name": "ZType",
+                "info": "打字游戏 - Type to Shoot",
+                "link": "https://zty.pe/"
+            }
+        ]
     },
     {
         "title": "编程",
-        "content": [{
-            "name": "网易卡搭社区",
-            "info": "编程社区，分享有趣的Scratch作品",
-            "link": "https://kada.163.com/"
-        },{
-            "name": "卡搭校园",
-            "info": "在课堂上，创作你自己的Scratch作品",
-            "link": "http://school.kada.163.com/",
-            "account": "javascript:alert(1)"
-        },{
-            "name": "编程猫社区",
-            "info": "Scratch作品",
-            "link": "https://shequ.codemao.cn/",
-            "account": "https://baidu.com/"
-        }
-        ,{
-            "name": "Blockly Games",
-            "info": "为未来的程序员所设计的游戏",
-            "link": "http://www.kidscode.cn/blockly_games/zh-hans/index.html"
-        },{
-            "name": "编程一小时",
-            "info": "一个全球性的编程学习活动",
-            "link": "https://code.org/hourofcode/overview"
-        },{
-            "name": "编程一小时",
-            "info": "一个全球性的编程学习活动",
-            "link": "https://code.org/hourofcode/overview"
-        }]
-        
+        "content": [
+            {
+                "name": "网易卡搭社区",
+                "info": "编程社区，分享有趣的Scratch作品",
+                "link": "https://kada.163.com/"
+            },
+            {
+                "name": "卡搭校园",
+                "info": "在课堂上，创作你自己的Scratch作品",
+                "link": "http://school.kada.163.com/",
+                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+            },
+            {
+                "name": "编程猫社区",
+                "info": "Scratch作品",
+                "link": "https://shequ.codemao.cn/",
+                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+            },
+            {
+                "name": "Blockly Games",
+                "info": "为未来的程序员所设计的游戏",
+                "link": "http://www.kidscode.cn/blockly_games/zh-hans/index.html"
+            },
+            {
+                "name": "编程一小时",
+                "info": "一个全球性的编程学习活动",
+                "link": "https://code.org/hourofcode/overview"
+            }
+        ]
     }
 ]

@@ -6,11 +6,11 @@
         <h1>Typing</h1>
       </el-menu-item>
 
+      <el-menu-item index="articleList">练习</el-menu-item>
       <el-menu-item index="testList">测试</el-menu-item>
       <!-- <el-menu-item index="finger">指法练习</el-menu-item> -->
       <!-- <el-menu-item index="word">单词练习</el-menu-item> -->
-      <el-menu-item index="articleList">练习</el-menu-item>
-
+      
       <el-menu-item id="userinfo">
         <span>欢迎你，{{ this.$store.state.school }} {{ this.$store.state.name }}</span>
         <el-button type="text" style="margin-left:10px" @click="logoutFn">退出</el-button>
@@ -26,7 +26,7 @@ export default {
   name: "Home",
   data() {
     return {
-      activeIndex: "testList",
+      activeIndex: "articleList",
     };
   },
   methods: {
@@ -35,7 +35,6 @@ export default {
       this.$router.push('/login')
     },
     handleSelect(key, keyPath){
-      console.log(this.activeIndex)
       if(key == 'testList'){
         this.$router.push('/typing/testList')
       }else if(key == 'articleList'){
@@ -48,7 +47,7 @@ export default {
     document.title = "Typing - 打字测试";
   },
   mounted() {
-    console.log(this.activeIndex)
+    
   }
 };
 </script>

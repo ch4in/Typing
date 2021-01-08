@@ -89,7 +89,7 @@ export default {
             if(_this.$store.state.isPractice){
               _this.$router.push("articleList");
             }else{
-              _this.$router.push("test");
+              _this.$router.push("testList");
             }
           })
           .catch(function(err) {
@@ -102,7 +102,7 @@ export default {
     handleClose() {
       this.$confirm("确认放弃提交？")
         .then(_ => {
-          this.$router.push("test");
+          this.$router.push("articleList");
         })
         .catch(_ => {});
     }
