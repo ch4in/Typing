@@ -1,0 +1,77 @@
+<template>
+  <div class="rankList">
+    <h1>
+      Ranklist<span v-show="this.$store.state.isPractice">
+        - {{ this.$store.state.article.title }}</span
+      >
+    </h1>
+    <el-table :data="tableData" style="width: 100%">
+      <el-table-column type="index" label="名次">
+       <template slot-scope="scope">
+        <span v-if="scope.$index===0" style=""><img alt="Typing" src="@/assets/gold.png" /></span>
+        <span v-else-if="scope.$index===1" style=""><img alt="Typing" src="@/assets/silver.png" /></span>
+        <span v-else-if="scope.$index===2" style=""><img alt="Typing" src="@/assets/bronze.png" /></span>
+        <span v-else style="margin-left: 10px">{{ scope.$index+1 }}</span>
+      </template>
+      </el-table-column>
+      <el-table-column prop="stuName" label="姓名"></el-table-column>
+      <el-table-column prop="correctRate" label="正确率%"></el-table-column>
+      <el-table-column prop="speed" :label="labelSpeed"></el-table-column>
+      <el-table-column prop="score" label="得分"></el-table-column>
+    </el-table>
+    <el-button class="btnBack" @click="handleBack">返回</el-button>
+  </div>
+</template>
+<script>
+export default {
+  name: 'RankList',
+  data () {
+    return {
+      tableData: []
+    }
+  },
+  mounted () {
+    var _this = this; var id
+    if (this.$store.state.isPractice) {
+      id = this.$store.state.article.title
+    } else {
+      id = this.$store.state.testID
+    }
+    axios
+      .get('/get_rankList/', {
+        params: {
+          isPractice: this.$store.state.isPractice,
+          ID: id
+        }
+      })
+      .then(function (response) {
+        _this.tableData = response.data
+      })
+      .catch(function (error) {
+        console.log(error)
+      })
+  },
+  computed: {
+    labelSpeed () {
+      if (this.$store.state.article['type'] == 'Cn') {
+        return '速度WPM（字/分）'
+      } else {
+        return '速度KPM（键/分）'
+      }
+    }
+  },
+  methods: {
+    handleBack () {
+      this.$router.go(-1)
+    }
+  }
+}
+</script>
+<style scoped>
+.rankList {
+  margin: 50px 100px;
+}
+.btnBack {
+  margin-top: 20px;
+}
+</style>
