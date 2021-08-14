@@ -8,7 +8,7 @@ export default new Vuex.Store({
     school: '',
     class: '',
     name: '',
-    totalTestTime: 5,
+    totalTestTime: 5, //总测试时长
     article: {
       'title': '',
       'content': '',

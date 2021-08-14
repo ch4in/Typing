@@ -63,7 +63,7 @@ export default {
       this.currentPage = currentPage
       this.currentChangePage(this.allData, currentPage)
     },
-    // 分页方法（重点）
+    // 分页方法
     currentChangePage (list, currentPage) {
       let from = (currentPage - 1) * this.pageSize
       let to = currentPage * this.pageSize

@@ -32,8 +32,6 @@ export default {
       this.$prompt('请输入测试码', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消'
-        // inputPattern: /^\d+$/,
-        // inputErrorMessage: '测试码位数不正确'
       })
         .then(({ value }) => {
           if (value == null) {

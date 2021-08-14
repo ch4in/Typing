@@ -26,11 +26,11 @@
         @focus="focus_line(i)"
         @keyup.delete.native="key_delete"
         @keyup.enter.native="key_enter"
-        @paste.native.capture.prevent="false"
+        
         :disabled="isDisabled[i]"
       ></el-input>
+  <!-- @paste.native.capture.prevent="false" -->
     </div>
-
     <SubmitDialog
       :visible="isDialogVisible"
       :testInfo="testInfo"
@@ -107,22 +107,10 @@ export default {
     if (this.$store.state.article['title'] == '') this.$router.push('/typing')
   },
   mounted () {
-    // if (document.all) {
-    //   document.onselectstart = function() {
-    //     return false;
-    //   }; //for ie
-    // } else {
-    //   document.onmousedown = function() {
-    //     return false;
-    //   };
-    //   document.onmouseup = function() {
-    //     return true;
-    //   };
-    // }
-    // 禁用鼠标右键、选择、非输入状态的退格键
     document.oncontextmenu = new Function('event.returnValue=false')
-    document.onselectstart = new Function('event.returnValue=false')
+    // document.onselectstart = new Function('event.returnValue=false')
     history.pushState(null, null, document.URL)
+    // 使浏览器返回按钮无效，防止学生出现光标未定位到input中按了退格键，导致返回前一页
     window.addEventListener('popstate', function () {
       history.pushState(null, null, document.URL)
     })
@@ -290,7 +278,6 @@ export default {
       // 计算分数
       this.score = (this.correctRate * this.speed) / 100
       this.isDialogVisible = true
-      // this.$router.push('/home/submit')
     }
   },
   watch: {

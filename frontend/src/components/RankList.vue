@@ -1,17 +1,17 @@
 <template>
   <div class="rankList">
     <h1>
-      Ranklist<span v-show="this.$store.state.isPractice">
+      排名<span v-show="this.$store.state.isPractice">
         - {{ this.$store.state.article.title }}</span
       >
     </h1>
-    <el-table :data="tableData" style="width: 100%">
+    <el-table :data="tableData" style="width: 100%" :cell-style="{ 'text-align': 'center' }" :header-cell-style="{ 'text-align': 'center' }">
       <el-table-column type="index" label="名次">
        <template slot-scope="scope">
         <span v-if="scope.$index===0" style=""><img alt="Typing" src="@/assets/gold.png" /></span>
         <span v-else-if="scope.$index===1" style=""><img alt="Typing" src="@/assets/silver.png" /></span>
         <span v-else-if="scope.$index===2" style=""><img alt="Typing" src="@/assets/bronze.png" /></span>
-        <span v-else style="margin-left: 10px">{{ scope.$index+1 }}</span>
+        <span v-else>{{ scope.$index+1 }}</span>
       </template>
       </el-table-column>
       <el-table-column prop="stuName" label="姓名"></el-table-column>
