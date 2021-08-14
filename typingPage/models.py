@@ -1,5 +1,6 @@
 from django.db import models
-
+import datetime
+from django.utils import timezone
 # Create your models here.
 
 
@@ -27,6 +28,8 @@ class test(models.Model):
     entryCode = models.CharField('测试码', default='123', max_length=20)
     articleID = models.ForeignKey(
         article, on_delete=models.CASCADE, verbose_name='文章')
+    isVisible = models.BooleanField('是否可见', default=False)
+    
 
     def __str__(self):
         return str(self.testID)

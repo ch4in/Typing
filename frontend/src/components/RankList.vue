@@ -24,48 +24,48 @@
 </template>
 <script>
 export default {
-  name: "RankList",
-  data() {
+  name: 'RankList',
+  data () {
     return {
-      tableData: [],
-    };
+      tableData: []
+    }
   },
-  mounted() {
-    var _this = this, id;
+  mounted () {
+    var _this = this; var id
     if (this.$store.state.isPractice) {
-      id = this.$store.state.article.title;
+      id = this.$store.state.article.title
     } else {
-      id = this.$store.state.testID;
+      id = this.$store.state.testID
     }
     axios
-      .get("/get_rankList/", {
+      .get('/get_rankList/', {
         params: {
           isPractice: this.$store.state.isPractice,
-          ID: id,
-        },
+          ID: id
+        }
       })
       .then(function (response) {
-        _this.tableData = response.data;
+        _this.tableData = response.data
       })
       .catch(function (error) {
-        console.log(error);
-      });
+        console.log(error)
+      })
   },
-  computed:{
-    labelSpeed(){
-      if(this.$store.state.article["type"] == 'Cn'){
+  computed: {
+    labelSpeed () {
+      if (this.$store.state.article['type'] == 'Cn') {
         return '速度WPM（字/分）'
-      }else{
+      } else {
         return '速度KPM（键/分）'
       }
     }
   },
   methods: {
-    handleBack() {
-      this.$router.go(-1);
+    handleBack () {
+      this.$router.go(-1)
     }
-  },
-};
+  }
+}
 </script>
 <style scoped>
 .rankList {

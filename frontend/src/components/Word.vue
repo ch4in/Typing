@@ -11,12 +11,12 @@
 </template>
 
 <script>
-import Keyboard from "@/components/Keyboard";
-import Recorder from "@/components/Recorder";
+import Keyboard from '@/components/Keyboard'
+import Recorder from '@/components/Recorder'
 
 export default {
-  name: "Word",
-  data() {
+  name: 'Word',
+  data () {
     return {
       // wordList: [
       //   "pen",
@@ -32,42 +32,42 @@ export default {
       //   "pen",
       //   "pencil"
       // ],
-      wordList:['啊啊','哦','在线'],
-      wordType: "Cn",
+      wordList: ['啊啊', '哦', '在线'],
+      wordType: 'Cn',
       wordIndex: 0,
-      wordInput: "",
+      wordInput: '',
       isError: [],
       isRight: [],
       speed: 0,
-      timeStr: "",
-      percentage: 0,
-    };
+      timeStr: '',
+      percentage: 0
+    }
   },
   computed: {
-    showWord() {
-      return this.wordList[this.wordIndex];
+    showWord () {
+      return this.wordList[this.wordIndex]
     }
   },
   methods: {
   },
   watch: {
-    wordInput() {
+    wordInput () {
       // 改变颜色
       // for(var i = 0;i<this.wordInput.length;i++){
       //   if(this.wordInput[i] == this.wordList[this.wordIndex][i]){
 
       //   }
       // }
-      
+
       if (this.wordList[this.wordIndex] === this.wordInput) {
-        this.wordIndex++;
-        this.wordInput = "";
+        this.wordIndex++
+        this.wordInput = ''
       }
     }
   },
-  mounted() {},
+  mounted () {},
   components: { Recorder, Keyboard }
-};
+}
 </script>
 
 <style scoped>

@@ -43,18 +43,18 @@
   </div>
 </template>
 <script>
-import nav from "../assets/nav.json";
+import nav from '../assets/nav.json'
 export default {
-  name: "Portal",
-  data() {
+  name: 'Portal',
+  data () {
     return {
-      nav,
-    };
+      nav
+    }
   },
-  created() {
+  created () {
     document.title = 'Portal导航'
-  },
-};
+  }
+}
 </script>
 <style scoped>
 .portal {

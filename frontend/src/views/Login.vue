@@ -36,35 +36,35 @@
 </template>
 
 <script>
-import store from "@/store";
+import store from '@/store'
 export default {
-  name: "Login",
+  name: 'Login',
   store,
-  data() {
+  data () {
     return {
-      uname: "",
-      select: "沙城一小",
-      options: ["沙城一小"],
+      uname: '',
+      select: '沙城一小',
+      options: ['沙城一小'],
       error: 0
-    };
+    }
   },
   methods: {
-    loginFn() {
+    loginFn () {
       if (this.uname.length >= 2 && this.uname.length <= 4) {
-        this.error = 0;
+        this.error = 0
         // 登录验证
-        this.$store.state.school = this.select;
-        store.commit('set_name', this.uname);
-        this.$router.push("/typing");
+        this.$store.state.school = this.select
+        store.commit('set_name', this.uname)
+        this.$router.push('/typing')
       } else {
-        this.error = 1;
+        this.error = 1
       }
     }
   },
-  created() {
+  created () {
     document.title = 'Login登录'
-  },
-};
+  }
+}
 </script>
 
 <style>

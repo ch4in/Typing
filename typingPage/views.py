@@ -29,9 +29,9 @@ def get_articleList(request):
 
 
 def get_testList(request):
-    testSet = test.objects.all()
+    testSet = test.objects.filter(isVisible=True)
     res = []
-    for i in testSet:
+    for i in testSet[::-1]:
         t = {}
         t['school'] = i.school
         t['class'] = i.classInfo

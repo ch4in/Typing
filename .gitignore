@@ -11,3 +11,7 @@ npm-debug.log*
 
 *.pyc
 */__pycache__/
+
+TODO.txt
+backup.json
+db.sqlite3

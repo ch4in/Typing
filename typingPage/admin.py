@@ -47,11 +47,19 @@ class articleAdmin(admin.ModelAdmin):
     fields = ('title', 'content', 'type', 'isVisible')
     search_fields = ('title',)
 
+class practiceResultAdmin(admin.ModelAdmin):
+    list_display = ("articleID", "stuName", 'speed',
+                    'correctRate', 'score')
+    fields = ("articleID", 'stuName', 'speed', 'correctRate', 'score')
+    search_fields = ('stuName',)
+    list_filter = ("articleID", )
+    list_per_page = 50
+
 
 class testAdmin(admin.ModelAdmin):
     list_display = ('testID', "school", 'classInfo',
-                    'articleID', 'testTotalTime','entryCode')
-    fields = ('school', 'classInfo', 'articleID', 'testTotalTime', 'entryCode')
+                    'articleID', 'testTotalTime','entryCode', 'isVisible')
+    fields = ('school', 'classInfo', 'articleID', 'testTotalTime', 'entryCode', 'isVisible')
 
 
 class testResultAdmin(admin.ModelAdmin):
@@ -69,16 +77,11 @@ class testResultAdmin(admin.ModelAdmin):
         return obj.testID.classInfo
 
 
-class practiceResultAdmin(admin.ModelAdmin):
-    list_display = ("articleID", "stuName", 'speed',
-                    'correctRate', 'score')
-    fields = ("articleID", 'stuName', 'speed', 'correctRate', 'score')
-    search_fields = ('stuName',)
-    list_filter = ("articleID", )
-    list_per_page = 50
+
 
 
 admin.site.register(models.article, articleAdmin)
+admin.site.register(models.practiceResult, practiceResultAdmin)
 admin.site.register(models.test, testAdmin)
 admin.site.register(models.testResult, testResultAdmin)
-admin.site.register(models.practiceResult, practiceResultAdmin)
+

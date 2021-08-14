@@ -17,105 +17,104 @@
 </template>
 <script>
 export default {
-  name: "TestList",
-  data() {
+  name: 'TestList',
+  data () {
     return {
       tableData: []
-    };
+    }
   },
   methods: {
-    handleRowClick(row, column, event){
-      
+    handleRowClick (row, column, event) {
+
     },
-    handleEnter(index, row) {
-      var _this = this;
-      this.$prompt("请输入测试码", "提示", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消"
+    handleEnter (index, row) {
+      var _this = this
+      this.$prompt('请输入测试码', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
         // inputPattern: /^\d+$/,
         // inputErrorMessage: '测试码位数不正确'
       })
         .then(({ value }) => {
           if (value == null) {
-            throw "";
+            throw ''
           }
           axios
-            .get("/check_entryCode/", {
+            .get('/check_entryCode/', {
               params: {
                 code: value,
                 id: _this.tableData[index].testID
               }
             })
-            .then(function(response) {
-              if (response.data["res"] !== true) {
+            .then(function (response) {
+              if (response.data['res'] !== true) {
                 _this.$message({
-                  type: "error",
-                  message: "测试码错误"
-                });
+                  type: 'error',
+                  message: '测试码错误'
+                })
               } else {
-                _this.loadArticle(index, row);
+                _this.loadArticle(index, row)
                 _this.$message({
-                  type: "success",
-                  message: "开始测试"
-                });
+                  type: 'success',
+                  message: '开始测试'
+                })
               }
             })
-            .catch(function(error) {});
+            .catch(function (error) {})
         })
         .catch(() => {
           this.$message({
-            type: "info",
-            message: "请询问老师获取测试码"
-          });
-        });
+            type: 'info',
+            message: '请询问老师获取测试码'
+          })
+        })
     },
-    loadArticle(index, row) {
-      this.$store.state.school = row.school;
-      this.$store.state.class = row.class;
-      this.$store.state.totalTestTime = row.time;
-      var _this = this;
+    loadArticle (index, row) {
+      this.$store.state.school = row.school
+      this.$store.state.class = row.class
+      this.$store.state.totalTestTime = row.time
+      var _this = this
       axios
-        .get("/get_article/", {
+        .get('/get_article/', {
           params: {
             testID: this.tableData[index].testID
           }
         })
-        .then(function(response) {
-          _this.$store.state.article["title"] = response.data["title"];
-          _this.$store.state.article["content"] = response.data["content"];
-          _this.$store.state.article["type"] = response.data["type"];
-          _this.$store.state.testID = response.data["testID"];
-          _this.$router.push("article");
+        .then(function (response) {
+          _this.$store.state.article['title'] = response.data['title']
+          _this.$store.state.article['content'] = response.data['content']
+          _this.$store.state.article['type'] = response.data['type']
+          _this.$store.state.testID = response.data['testID']
+          _this.$router.push('article')
         })
-        .catch(function(error) {
-          console.log(error);
-        });
+        .catch(function (error) {
+          console.log(error)
+        })
     },
-    handleRank(index, row) {
-      this.$store.state.testID = this.tableData[index].testID;
-      if(row.type == "中文"){
+    handleRank (index, row) {
+      this.$store.state.testID = this.tableData[index].testID
+      if (row.type == '中文') {
         this.$store.state.article.type = 'Cn'
-      }
-      else if(row.type == "英文"){
+      } else if (row.type == '英文') {
         this.$store.state.article.type = 'En'
       }
-      this.$store.state.isPractice = false;
-      this.$router.push("rank");
+      this.$store.state.isPractice = false
+      this.$router.push('rank')
     }
   },
-  mounted() {
-    this.$store.state.isPractice = false;
-    var _this = this;
+  mounted () {
+    this.$store.state.isPractice = false
+    var _this = this
     axios
-      .get("/get_testList/")
-      .then(function(response) {
-        _this.tableData = response.data;
+      .get('/get_testList/')
+      .then(function (response) {
+        _this.tableData = response.data
       })
-      .catch(function(error) {
-        console.log(error);
-      });
+      .catch(function (error) {
+        console.log(error)
+      })
   }
-};
+}
 </script>
 <style scoped>
 .testList{

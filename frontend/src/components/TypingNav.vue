@@ -2,10 +2,10 @@
 </template>
 <script>
 export default {
-  name: "TypingNav",
+  name: 'TypingNav',
   data () {
     return {
-    };
+    }
   }
 }
 </script>

@@ -437,8 +437,8 @@
 
 <script>
 export default {
-  name: "Keyboard"
-};
+  name: 'Keyboard'
+}
 </script>
 
 <style scoped>

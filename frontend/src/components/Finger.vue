@@ -2,13 +2,12 @@
   <div class="finger">
     <Recorder></Recorder>
     <transition name="el-fade-in"><div id="char" v-show="show" >{{ char }}</div></transition>
-    
 
   </div>
 </template>
 
 <script>
-import Keyboard from "@/components/Keyboard";
+import Keyboard from '@/components/Keyboard'
 import Recorder from '@/components/Recorder'
 
 export default {
@@ -26,7 +25,7 @@ export default {
       this.char = charArray[Math.floor(Math.random() * charArray.length)]
     }
   },
-  created() {
+  created () {
     var _this = this
     this.getAChar()
     document.onkeydown = function (e) {
@@ -40,7 +39,7 @@ export default {
       }
     }
   },
-  components: {Recorder, Keyboard}
+  components: { Recorder, Keyboard }
 }
 </script>
 

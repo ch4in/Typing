@@ -1,7 +1,7 @@
-//axios域代理，解决axios跨域问题
+// axios域代理，解决axios跨域问题
 module.exports = {
   devServer: {
-    proxy: 'http://localhost:8888',
+    proxy: 'http://localhost:8888'
     // proxy: {
     //   '/': {
     //     // 目标 API 地址
@@ -23,5 +23,5 @@ module.exports = {
       msTileImage: 'favicon.ico'
     }
   },
-  assetsDir: 'static',
+  assetsDir: 'static'
 }

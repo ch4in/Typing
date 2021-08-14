@@ -12,71 +12,71 @@ Vue.use(Router)
 
 export default new Router({
   routes: [{
-      path: '/portal',
-      component: Portal,
-      meta: {
-        title: 'Portal导航'
-      }
-    },
-    {
-      path: '/md',
-      component: Markdown,
-      meta: {
-        title: '任务单'
-      }
-    },{
-      path: '/login',
-      component: Login,
-      meta: {
-        title: '登录'
-      }
-    },
-    {
-      path: '/typing',
-      component: Home,
-      children: [{
-          path: 'testList',
-          name: 'testList',
-          component: TestList
-        },
-        {
-          path: 'articleList',
-          name: 'articleList',
-          component: ArticleList
-        },
-        {
-          path: 'article',
-          name: 'article',
-          component: () => import( /* webpackChunkName: "Article" */ './components/Article.vue')
-        },
-        {
-          path: 'rank',
-          name: 'rank',
-          component: () => import( /* webpackChunkName: "RankList" */ './components/RankList.vue')
-        },
-        {
-          path: 'finger',
-          name: 'finger',
-          component: () => import( /* webpackChunkName: "Finger" */ './components/Finger.vue')
-        },
-        {
-          path: 'word',
-          name: 'word',
-          component: () => import( /* webpackChunkName: "Word" */ './components/Word.vue')
-        },
-        {
-          path: '',
-          redirect: 'articleList'
-        },
-        {
-          path: '*',
-          redirect: 'articleList'
-        }
-      ]
-    },
-    {
-      path: '/',
-      redirect:'/login',
+    path: '/portal',
+    component: Portal,
+    meta: {
+      title: 'Portal导航'
     }
+  },
+  {
+    path: '/md',
+    component: Markdown,
+    meta: {
+      title: '任务单'
+    }
+  }, {
+    path: '/login',
+    component: Login,
+    meta: {
+      title: '登录'
+    }
+  },
+  {
+    path: '/typing',
+    component: Home,
+    children: [{
+      path: 'testList',
+      name: 'testList',
+      component: TestList
+    },
+    {
+      path: 'articleList',
+      name: 'articleList',
+      component: ArticleList
+    },
+    {
+      path: 'article',
+      name: 'article',
+      component: () => import(/* webpackChunkName: "Article" */ './components/Article.vue')
+    },
+    {
+      path: 'rank',
+      name: 'rank',
+      component: () => import(/* webpackChunkName: "RankList" */ './components/RankList.vue')
+    },
+    {
+      path: 'finger',
+      name: 'finger',
+      component: () => import(/* webpackChunkName: "Finger" */ './components/Finger.vue')
+    },
+    {
+      path: 'word',
+      name: 'word',
+      component: () => import(/* webpackChunkName: "Word" */ './components/Word.vue')
+    },
+    {
+      path: '',
+      redirect: 'articleList'
+    },
+    {
+      path: '*',
+      redirect: 'articleList'
+    }
+    ]
+  },
+  {
+    path: '/',
+    redirect: '/login'
+  }
   ]
 })

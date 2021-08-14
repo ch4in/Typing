@@ -28,29 +28,29 @@
 
 <script>
 export default {
-  data() {
+  data () {
     return {
       tableData: [],
       allData: [],
       total: 0,
       currentPage: 1,
       pageSize: 10
-    };
+    }
   },
-  mounted() {
-    this.$store.state.isPractice = true;
-    this.currentPage = 1;
-    var _this = this;
+  mounted () {
+    this.$store.state.isPractice = true
+    this.currentPage = 1
+    var _this = this
     axios
-      .get("/get_articleList/")
-      .then(function(response) {
-        _this.allData = response.data;
-        _this.total = _this.allData.length;
-        _this.handleCurrentChange(1);
+      .get('/get_articleList/')
+      .then(function (response) {
+        _this.allData = response.data
+        _this.total = _this.allData.length
+        _this.handleCurrentChange(1)
       })
-      .catch(function(error) {
-        console.log(error);
-      });
+      .catch(function (error) {
+        console.log(error)
+      })
   },
   methods: {
     // handleSizeChange: function(pageSize) {
@@ -58,58 +58,57 @@ export default {
     //   this.pageSize = pageSize;
     //   this.handleCurrentChange(this.currentPage1);
     // },
-    handleCurrentChange(currentPage) {
-      //页码切换
-      this.currentPage = currentPage;
-      this.currentChangePage(this.allData, currentPage);
+    handleCurrentChange (currentPage) {
+      // 页码切换
+      this.currentPage = currentPage
+      this.currentChangePage(this.allData, currentPage)
     },
-    //分页方法（重点）
-    currentChangePage(list, currentPage) {
-      let from = (currentPage - 1) * this.pageSize;
-      let to = currentPage * this.pageSize;
-      this.tableData = [];
+    // 分页方法（重点）
+    currentChangePage (list, currentPage) {
+      let from = (currentPage - 1) * this.pageSize
+      let to = currentPage * this.pageSize
+      this.tableData = []
       for (; from < to; from++) {
         if (list[from]) {
-          this.tableData.push(list[from]);
+          this.tableData.push(list[from])
         }
       }
     },
-    loadArticle(index, row) {
-      this.$store.state.totalTestTime = 8; // TODO：可自定义练习时长？
-      
-      var _this = this;
+    loadArticle (index, row) {
+      this.$store.state.totalTestTime = 8 // TODO：可自定义练习时长？
+
+      var _this = this
       axios
-        .get("/get_article/", {
+        .get('/get_article/', {
           params: {
             title: _this.tableData[index].title
           }
         })
-        .then(function(response) {
-          _this.$store.state.article["title"] = _this.tableData[index].title;
-          _this.$store.state.article["content"] = response.data["content"];
-          _this.$store.state.article["type"] = response.data["type"];
-          _this.$router.push("article");
+        .then(function (response) {
+          _this.$store.state.article['title'] = _this.tableData[index].title
+          _this.$store.state.article['content'] = response.data['content']
+          _this.$store.state.article['type'] = response.data['type']
+          _this.$router.push('article')
         })
-        .catch(function(error) {
-          console.log(error);
-        });
+        .catch(function (error) {
+          console.log(error)
+        })
     },
-    handleRank(index, row) {
-      this.$store.state.article.title = this.tableData[index].title;
-      this.$store.state.isPractice = true;
-      if(row.type == "中文"){
+    handleRank (index, row) {
+      this.$store.state.article.title = this.tableData[index].title
+      this.$store.state.isPractice = true
+      if (row.type == '中文') {
         this.$store.state.article.type = 'Cn'
-      }
-      else if(row.type == "英文"){
+      } else if (row.type == '英文') {
         this.$store.state.article.type = 'En'
       }
-      this.$router.push("rank");
+      this.$router.push('rank')
     },
-    filterTag(value, row) {
-      return row.type === value;
+    filterTag (value, row) {
+      return row.type === value
     }
   }
-};
+}
 </script>
 
 <style scoped>

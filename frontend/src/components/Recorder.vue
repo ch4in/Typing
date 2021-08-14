@@ -43,37 +43,37 @@
 
 <script>
 export default {
-  name: "Recorder",
-  props: ["speed", "unit", "time", "percentage", "isPause", "pauseTime"],
-  data() {
+  name: 'Recorder',
+  props: ['speed', 'unit', 'time', 'percentage', 'isPause', 'pauseTime'],
+  data () {
     return {
-      isFixed: false,
-    };
+      isFixed: false
+    }
   },
-  mounted() {
-    window.addEventListener("scroll", this.handleScroll);
+  mounted () {
+    window.addEventListener('scroll', this.handleScroll)
   },
   methods: {
-    handleScroll() {
+    handleScroll () {
       var scrollTop =
         window.pageYOffset ||
         document.documentElement.scrollTop ||
-        document.body.scrollTop;
-      var offsetTop = document.querySelector(".info").offsetTop;
+        document.body.scrollTop
+      var offsetTop = document.querySelector('.info').offsetTop
       if (scrollTop > offsetTop) {
-        this.isFixed = true;
+        this.isFixed = true
       } else {
-        this.isFixed = false;
+        this.isFixed = false
       }
     },
-    timePause() {
-      this.$emit("timePause");
-    },
+    timePause () {
+      this.$emit('timePause')
+    }
   },
-  destroyed() {
-    window.removeEventListener("scroll", this.handleScroll);
-  },
-};
+  destroyed () {
+    window.removeEventListener('scroll', this.handleScroll)
+  }
+}
 </script>
 
 <style scoped>

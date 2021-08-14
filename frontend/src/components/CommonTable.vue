@@ -1,13 +1,13 @@
 <template>
     <div id="commonTable">
-        <el-table :data="data" :max-height="maxHeight" border stripe tooltip-effect="light" 
+        <el-table :data="data" :max-height="maxHeight" border stripe tooltip-effect="light"
 　　　　　　@selection-change="handleSelectionChange">
             <slot name="table_oper"/>
             <template v-for="(item, index) in columns">
-                <el-table-column 
+                <el-table-column
                     v-if="item.show != false"
                     :key="index"
-                    :prop="item.prop" 
+                    :prop="item.prop"
                     :label="item.label"
                     :align="item.align?item.align:'center'"
                     :width="item.width"
@@ -31,29 +31,29 @@
 
 <script>
 export default {
-    name: 'commonTable',
-    props: {
-        columns: Array,
-        data: Array,
-        pager: Object,
-        maxHeight: {
-            type: Number,
-            default: 2000
-        }
-    },
-    methods: {
-        handleSelectionChange(val) {
-            this.$emit('handleSelectionChange', val);
-        },
-        handleSizeChange(val) {
-            this.$emit('handleSizeChange', val);
-        },
-        handleCurrentChange(val) {
-            this.$emit('handleCurrentChange', val);
-        },
-        formatterValue(row, column, cellValue) {
-            return cellValue;
-        }
+  name: 'commonTable',
+  props: {
+    columns: Array,
+    data: Array,
+    pager: Object,
+    maxHeight: {
+      type: Number,
+      default: 2000
     }
+  },
+  methods: {
+    handleSelectionChange (val) {
+      this.$emit('handleSelectionChange', val)
+    },
+    handleSizeChange (val) {
+      this.$emit('handleSizeChange', val)
+    },
+    handleCurrentChange (val) {
+      this.$emit('handleCurrentChange', val)
+    },
+    formatterValue (row, column, cellValue) {
+      return cellValue
+    }
+  }
 }
 </script>
