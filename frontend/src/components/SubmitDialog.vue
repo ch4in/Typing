@@ -1,6 +1,6 @@
 <template>
   <div class="SubmitDialog">
-    <el-dialog title="确认信息" :visible.sync="visible" width="500px" :before-close="handleClose">
+    <el-dialog title="结果" :visible.sync="visible" width="500px" :before-close="handleClose">
       <el-row>
         <el-col :span="12">学校：{{ this.$store.state.school }}</el-col>
         <el-col :span="12">班级：{{ this.$store.state.class }}</el-col>
@@ -12,22 +12,23 @@
         <el-col :span="12">用时：{{ time }}</el-col>
         <!-- <el-col :span="12">完成率：{{ testInfo.percentage }}%</el-col> -->
         <el-col :span="12">正确率：{{ testInfo.correctRate }}%</el-col>
+        <el-col></el-col>
       </el-row>
 
       <div slot="footer" class="dialog-footer">
         <el-row>
           <el-col :span="8" :offset="2">
-            <el-input placeholder="请输入" v-model="name">
+            <el-input placeholder="请输入" v-model="name" :disabled="true">
               <template slot="prepend">姓名</template>
             </el-input>
-            <el-tag
+            <!-- <el-tag
               type="danger"
               v-show="isNameError"
               style="position:absolute;left:205px;top:4px;"
-            >长度应在2到4个字符。</el-tag>
+            >长度应在2到4个字符。</el-tag>-->
           </el-col>
-          <el-col :span="4" :offset="10">
-            <el-button type="primary" @click="handleSubmit">提 交</el-button>
+          <el-col :span="24" :offset="10">
+            <el-button type="primary" @click="handleSubmit">确 定</el-button>
           </el-col>
         </el-row>
       </div>
