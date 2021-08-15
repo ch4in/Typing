@@ -43,10 +43,11 @@
       </el-col>
     </el-row>
     <el-alert
-    title="登录失败，请检查学校/班级/姓名是否正确。"
-    type="error"
-    v-show="loginError">
-  </el-alert>
+      title="登录失败，请检查学校/班级/姓名是否正确。"
+      type="error"
+      v-show="loginError"
+    >
+    </el-alert>
   </div>
 </template>
 
@@ -77,7 +78,7 @@ export default {
         "六（3）班",
         "六（4）班",
         "六（5）班",
-        "六（6）班"
+        "六（6）班",
       ],
       nameLengthError: 0,
       loginError: 0,
@@ -87,13 +88,14 @@ export default {
     loginFn() {
       if (2 <= this.uname.length && this.uname.length <= 4) {
         this.nameLengthError = this.loginError = 0;
+        var gn = this.classToGraduationNum(this.selectClass);
         var params = new URLSearchParams({
-          school:this.selectSchool,
-          stuClass:this.selectClass, 
-          stuName:this.uname,
+          school: this.selectSchool,
+          stuClass: gn,
+          stuName: this.uname,
         });
         // 登录验证
-        var _this = this
+        var _this = this;
         axios({
           url: "/user_login/",
           method: "post",
@@ -101,23 +103,52 @@ export default {
           responseType: "text",
         })
           .then(function (res) {
-            if(res.data=="OK"){
+            if (res.data == "OK") {
               _this.$store.state.user.school = _this.selectSchool;
-              _this.$store.state.user.stuClass = _this.selectClass
-              _this.$store.state.user.stuName = _this.uname
+              _this.$store.state.user.stuClass = _this.selectClass;
+              _this.$store.state.user.stuName = _this.uname;
               _this.$store.commit("set_name", _this.uname);
               _this.$router.push("/typing");
-            }else{
-              _this.loginError = 1
+            } else {
+              _this.loginError = 1;
             }
           })
           .catch(function (err) {
             console.log(err);
           });
-        
       } else {
         this.nameLengthError = 1;
       }
+    },
+    classToGraduationNum(s) {
+      var date = new Date(),
+        ans;
+      var y = date.getUTCFullYear() - 2000;
+      var m = date.getUTCMonth() + 1;
+      if (m > 7) {
+        if (s[0] == "三") {
+          ans = (y + 4).toString();
+        } else if (s[0] == "四") {
+          ans = (y + 3).toString();
+        } else if (s[0] == "五") {
+          ans = (y + 2).toString();
+        } else if (s[0] == "六") {
+          ans = (y + 1).toString();
+        }
+      } else {
+        //上半年
+        if (s[0] == "三") {
+          ans = (y + 3).toString();
+        } else if (s[0] == "四") {
+          ans = (y + 2).toString();
+        } else if (s[0] == "五") {
+          ans = (y + 1).toString();
+        } else if (s[0] == "六") {
+          ans = y.toString();
+        }
+      }
+      console.log(ans + "届" + s[2] + "班");
+      return ans + "届" + s[2] + "班";
     },
   },
   created() {

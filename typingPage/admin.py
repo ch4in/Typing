@@ -12,6 +12,7 @@ class UserAdmin(ImportExportModelAdmin):
     list_display = ("uid", 'school', 'stuClass', 'stuName', 'points')
     fields = ('school', 'stuClass', 'stuName', 'points')
     search_fields = ("uid", 'school', 'stuClass', 'stuName')
+    list_filter = ('school', "stuClass", )
 
 
 class articleAdmin(admin.ModelAdmin):
