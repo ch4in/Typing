@@ -12,7 +12,7 @@
       <!-- <el-menu-item index="word">单词练习</el-menu-item> -->
 
       <el-menu-item id="userinfo">
-        <span>欢迎你，{{ this.$store.state.school }} {{ this.$store.state.name }}</span>
+        <span>欢迎你，{{ this.$store.state.user.school }} - {{ this.$store.state.user.stuClass }} - {{ this.$store.state.user.stuName }}</span>
         <el-button type="text" style="margin-left:10px" @click="logoutFn">退出</el-button>
       </el-menu-item>
 

@@ -5,14 +5,25 @@
         - {{ this.$store.state.article.title }}</span
       >
     </h1>
-    <el-table :data="tableData" style="width: 100%" :cell-style="{ 'text-align': 'center' }" :header-cell-style="{ 'text-align': 'center' }">
+    <el-table
+      :data="tableData"
+      style="width: 100%"
+      :cell-style="{ 'text-align': 'center' }"
+      :header-cell-style="{ 'text-align': 'center' }"
+    >
       <el-table-column type="index" label="名次">
-       <template slot-scope="scope">
-        <span v-if="scope.$index===0" style=""><img alt="Typing" src="@/assets/gold.png" /></span>
-        <span v-else-if="scope.$index===1" style=""><img alt="Typing" src="@/assets/silver.png" /></span>
-        <span v-else-if="scope.$index===2" style=""><img alt="Typing" src="@/assets/bronze.png" /></span>
-        <span v-else>{{ scope.$index+1 }}</span>
-      </template>
+        <template slot-scope="scope">
+          <span v-if="scope.$index === 0" style=""
+            ><img alt="Typing" src="@/assets/gold.png"
+          /></span>
+          <span v-else-if="scope.$index === 1" style=""
+            ><img alt="Typing" src="@/assets/silver.png"
+          /></span>
+          <span v-else-if="scope.$index === 2" style=""
+            ><img alt="Typing" src="@/assets/bronze.png"
+          /></span>
+          <span v-else>{{ scope.$index + 1 }}</span>
+        </template>
       </el-table-column>
       <el-table-column prop="stuName" label="姓名"></el-table-column>
       <el-table-column prop="correctRate" label="正确率%"></el-table-column>
@@ -24,48 +35,47 @@
 </template>
 <script>
 export default {
-  name: 'RankList',
-  data () {
+  name: "RankList",
+  data() {
     return {
-      tableData: []
-    }
+      tableData: [],
+    };
   },
-  mounted () {
-    var _this = this; var id
+  mounted() {
+    var _this = this;
+    var id;
     if (this.$store.state.isPractice) {
-      id = this.$store.state.article.title
+      id = this.$store.state.article.title;
     } else {
-      id = this.$store.state.testID
+      id = this.$store.state.testID;
     }
     axios
-      .get('/get_rankList/', {
+      .get("/get_rankList/", {
         params: {
           isPractice: this.$store.state.isPractice,
-          ID: id
-        }
+          ID: id,
+        },
       })
       .then(function (response) {
-        _this.tableData = response.data
+        _this.tableData = response.data;
       })
       .catch(function (error) {
-        console.log(error)
-      })
+        console.log(error);
+      });
   },
   computed: {
-    labelSpeed () {
-      if (this.$store.state.article['type'] == 'Cn') {
-        return '速度WPM（字/分）'
-      } else {
-        return '速度KPM（键/分）'
-      }
-    }
+    labelSpeed() {
+      return this.$store.state.article["type"] == "Cn"
+        ? "速度WPM（字/分）"
+        : "速度KPM（键/分）";
+    },
   },
   methods: {
-    handleBack () {
-      this.$router.go(-1)
-    }
-  }
-}
+    handleBack() {
+      this.$router.go(-1);
+    },
+  },
+};
 </script>
 <style scoped>
 .rankList {

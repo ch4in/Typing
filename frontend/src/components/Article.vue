@@ -253,8 +253,8 @@ export default {
     },
     // 确认信息
     confirmInfo (isFinished) {
-      this.$refs.inputRef[this.focusedLine].blur()
       clearInterval(this.clock)
+      this.$refs.inputRef[this.focusedLine].blur()
       // 计算正确率
       if (isFinished === false) {
         var c = 0

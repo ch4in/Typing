@@ -1,7 +1,21 @@
 from django.db import models
 import datetime
 from django.utils import timezone
-# Create your models here.
+
+
+class User(models.Model):
+    uid = models.AutoField('用户编号', primary_key=True)
+    school = models.CharField('学校', max_length=20)
+    stuClass = models.CharField('班级', max_length=10)
+    stuName = models.CharField('姓名', max_length=4)
+    points = models.IntegerField('积分', default=0)
+
+    def __str__(self):
+        return self.stuName
+
+    class Meta:
+        verbose_name = '01 - 用户'
+        verbose_name_plural = verbose_name
 
 
 class article(models.Model):
@@ -16,7 +30,7 @@ class article(models.Model):
         return self.title
 
     class Meta:
-        verbose_name = '文章'
+        verbose_name = '02 - 文章'
         verbose_name_plural = verbose_name
 
 
@@ -34,23 +48,22 @@ class test(models.Model):
         return str(self.testID)
 
     class Meta:
-        verbose_name = '测试'
+        verbose_name = '04 - 测试'
         verbose_name_plural = verbose_name
 
 
 class testResult(models.Model):
     testID = models.ForeignKey(
-        test, on_delete=models.CASCADE, related_name='test_rank')
+        test, on_delete=models.CASCADE, related_name='test_rank', verbose_name='测试编号')
     stuName = models.CharField('姓名', max_length=4)
     speed = models.IntegerField('速度', default=0)
-    # completionRate = models.IntegerField('完成率', default=0)
     correctRate = models.DecimalField(
         '正确率', max_digits=4, decimal_places=1, default=0)
     score = models.DecimalField(
         '得分', max_digits=10, decimal_places=2, default=0)
 
     class Meta:
-        verbose_name = '测试结果'
+        verbose_name = '05 - 测试结果'
         verbose_name_plural = verbose_name
 
 
@@ -68,5 +81,5 @@ class practiceResult(models.Model):
         return self.stuName
 
     class Meta:
-        verbose_name = '练习结果'
+        verbose_name = '03 - 练习结果'
         verbose_name_plural = verbose_name

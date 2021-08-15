@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from typingPage.models import test, article, testResult, practiceResult
+from typingPage.models import User, test, article, testResult, practiceResult
 from django.utils import timezone
 import json
 import decimal
@@ -13,8 +13,14 @@ class DecimalEncoder(json.JSONEncoder):
         super(DecimalEncoder, self).default(o)
 
 
-def login(request):
-    return render(request, 'typingPage/login.html')
+def user_login(request):
+    school = request.POST.get('school')
+    stuClass = request.POST.get('stuClass')
+    stuName = request.POST.get('stuName')
+    if User.objects.filter(school=school, stuClass=stuClass, stuName=stuName):
+        return HttpResponse("OK")
+    else:
+        return HttpResponse("Wrong")
 
 
 def get_articleList(request):
@@ -110,3 +116,4 @@ def check_entryCode(request):
     id = request.GET['id']
     res = code == test.objects.get(testID=id).entryCode
     return HttpResponse(json.dumps({'res': res}), content_type="application/json")
+

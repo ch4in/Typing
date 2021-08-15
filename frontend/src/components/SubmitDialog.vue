@@ -43,7 +43,6 @@ export default {
       return m + "分" + s + "秒";
     },
   },
-  open(){console.log('open')},
   methods: {
     // 打开dialog时直接提交成绩
     submit() {
@@ -73,10 +72,10 @@ export default {
         responseType: "text",
       })
         .then(function (res) {
-          console.log(res);
+          // console.log(res);
         })
         .catch(function (err) {
-          console.log(error);
+          console.log('error');
         });
     },
     handleBack(){

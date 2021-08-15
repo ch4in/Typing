@@ -1,7 +1,7 @@
 <template>
   <div class="articleList">
     <h1>练习文章</h1>
-    <el-table :data="tableData" style="width: 100%">
+    <el-table :data="tableData" :cell-style="{ 'text-align': 'center' }" :header-cell-style="{ 'text-align': 'center' }">
       <el-table-column prop="title" label="标题"></el-table-column>
       <el-table-column
         prop="type"
@@ -75,8 +75,6 @@ export default {
       }
     },
     loadArticle (index, row) {
-      this.$store.state.totalTestTime = 8 // TODO：可自定义练习时长？
-
       var _this = this
       axios
         .get('/get_article/', {

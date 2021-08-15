@@ -1,7 +1,7 @@
 <template>
   <div class="testList">
     <h1>测试列表</h1>
-    <el-table :data="tableData" style="width: 100%" @row-click="handleRowClick">
+    <el-table :data="tableData" style="width: 100%" @row-click="handleRowClick" :cell-style="{ 'text-align': 'center' }" :header-cell-style="{ 'text-align': 'center' }">
       <el-table-column prop="school" label="学校"></el-table-column>
       <el-table-column prop="class" label="班级"></el-table-column>
       <el-table-column prop="type" label="测试类型"></el-table-column>
