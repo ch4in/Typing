@@ -70,26 +70,47 @@ def get_article(request):
 
 def post_testResult(request):
     if request.POST.get('testID'):
-        tr = testResult()
-        tr.testID = test.objects.select_related().get(
-            testID=int(request.POST['testID']))
-        tr.UID = User.objects.select_related().get(
-            uid=int(request.POST['stuID']))
-        tr.speed = int(request.POST['speed'])
-        tr.correctRate = float(request.POST['correctRate'])
-        tr.score = float(request.POST['score'])
-        tr.save()
+        # 测试结果
+        tr = testResult.objects.filter(testID=int(request.POST['testID']),UID=int(request.POST['stuID']))
+        if tr:
+            tr = tr[0]
+            if float(request.POST['score']) > tr.score:
+                tr.speed = int(request.POST['speed'])
+                tr.correctRate = float(request.POST['correctRate'])
+                tr.score = float(request.POST['score'])
+                tr.save()
+        else:
+            tr = testResult()
+            tr.testID = test.objects.select_related().get(
+                testID=int(request.POST['testID']))
+            tr.UID = User.objects.select_related().get(
+                uid=int(request.POST['stuID']))
+            tr.speed = int(request.POST['speed'])
+            tr.correctRate = float(request.POST['correctRate'])
+            tr.score = float(request.POST['score'])
+            tr.save()
         return HttpResponse("OK")
     else:
-        pr = practiceResult()
-        pr.articleID = article.objects.select_related().get(
-            title=request.POST['title'])
-        pr.UID = User.objects.select_related().get(
-            uid=int(request.POST['stuID']))
-        pr.speed = int(request.POST['speed'])
-        pr. correctRate = float(request.POST['correctRate'])
-        pr.score = float(request.POST['score'])
-        pr.save()
+        pr = practiceResult.objects.filter(articleID = article.objects.select_related().get(title=request.POST['title']), UID=int(request.POST['stuID']))
+        if pr:
+            # 更新
+            pr = pr[0]
+            if float(request.POST['score']) > pr.score:
+                pr.speed = int(request.POST['speed'])
+                pr.correctRate = float(request.POST['correctRate'])
+                pr.score = float(request.POST['score'])
+                pr.save()
+        else:
+            # 新增
+            pr = practiceResult()
+            pr.articleID = article.objects.select_related().get(
+                title=request.POST['title'])
+            pr.UID = User.objects.select_related().get(
+                uid=int(request.POST['stuID']))
+            pr.speed = int(request.POST['speed'])
+            pr.correctRate = float(request.POST['correctRate'])
+            pr.score = float(request.POST['score'])
+            pr.save()
         return HttpResponse("OK")
 
 
@@ -121,4 +142,3 @@ def check_entryCode(request):
     id = request.GET['id']
     res = code == test.objects.get(testID=id).entryCode
     return HttpResponse(json.dumps({'res': res}), content_type="application/json")
-
