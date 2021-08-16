@@ -71,7 +71,7 @@ export default {
   },
   computed: {
     totalTime () {
-      return this.$store.state.totalTestTime * 60 // 总时间*60
+      return this.$store.state.testInfo.totalTestTime * 60 // 总时间*60
     },
     speed () {
       return parseInt((this.typedWordNum / (this.totalTime - this.time)) * 60)

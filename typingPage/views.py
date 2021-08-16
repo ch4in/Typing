@@ -17,10 +17,11 @@ def user_login(request):
     school = request.POST.get('school')
     stuClass = request.POST.get('stuClass')
     stuName = request.POST.get('stuName')
-    if User.objects.filter(school=school, stuClass=stuClass, stuName=stuName):
-        return HttpResponse("OK")
+    t = User.objects.filter(school=school, stuClass=stuClass, stuName=stuName)
+    if t:
+        return HttpResponse(t[0].uid)
     else:
-        return HttpResponse("Wrong")
+        return HttpResponse("")
 
 
 def get_articleList(request):
@@ -68,11 +69,13 @@ def get_article(request):
 
 
 def post_testResult(request):
+    print(request.POST.get('testID'))
     if request.POST.get('testID'):
         tr = testResult()
         tr.testID = test.objects.select_related().get(
             testID=int(request.POST['testID']))
-        tr.stuName = request.POST['stuName']
+        tr.UID = User.objects.select_related().get(
+            uid=int(request.POST['stuID']))
         tr.speed = int(request.POST['speed'])
         tr.correctRate = float(request.POST['correctRate'])
         tr.score = float(request.POST['score'])
@@ -82,7 +85,8 @@ def post_testResult(request):
         pr = practiceResult()
         pr.articleID = article.objects.select_related().get(
             title=request.POST['title'])
-        pr.stuName = request.POST['stuName']
+        pr.UID = User.objects.select_related().get(
+            uid=int(request.POST['stuID']))
         pr.speed = int(request.POST['speed'])
         pr. correctRate = float(request.POST['correctRate'])
         pr.score = float(request.POST['score'])
@@ -95,15 +99,15 @@ def get_rankList(request):
     if request.GET.get('isPractice') == 'false':
         t = test.objects.get(testID=request.GET['ID'])
         rankListSet = testResult.objects.filter(
-            testID=t).order_by('-score', '-correctRate', '-speed', 'stuName')
+            testID=t).order_by('-score', '-correctRate', '-speed')
     else:
         a = article.objects.get(title=str(request.GET['ID']))
         rankListSet = practiceResult.objects.filter(
-            articleID=a).order_by('-score', '-correctRate', '-speed', 'stuName')
+            articleID=a).order_by('-score', '-correctRate', '-speed')
     res = []
     for (x, i) in enumerate(rankListSet):
         t = {}
-        t['stuName'] = i.stuName
+        t['stuName'] = i.UID.stuName
         t['speed'] = i.speed
         t['correctRate'] = i.correctRate
         t['score'] = i.score

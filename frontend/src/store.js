@@ -9,6 +9,7 @@ export default new Vuex.Store({
       school: '',
       stuClass: '',
       stuName: '',
+      stuID:''
     },
     article: {
       title: '',
@@ -28,6 +29,5 @@ export default new Vuex.Store({
     },
   },
   actions: {
-
   }
 })

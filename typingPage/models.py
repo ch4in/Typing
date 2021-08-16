@@ -34,6 +34,25 @@ class article(models.Model):
         verbose_name_plural = verbose_name
 
 
+class practiceResult(models.Model):
+    articleID = models.ForeignKey(
+        article, on_delete=models.CASCADE, related_name='practice_rank', verbose_name='文章')
+    UID = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='practice_uid',verbose_name='学生姓名')
+    speed = models.IntegerField('速度', default=0)
+    correctRate = models.DecimalField(
+        '正确率', max_digits=4, decimal_places=1, default=0)
+    score = models.DecimalField(
+        '得分', max_digits=10, decimal_places=2, default=0)
+
+    def __str__(self):
+        return self.UID.stuName
+
+    class Meta:
+        verbose_name = '03 - 练习结果'
+        verbose_name_plural = verbose_name
+
+
 class test(models.Model):
     testID = models.AutoField('测试编号', primary_key=True)
     school = models.CharField('学校', max_length=4)
@@ -45,7 +64,7 @@ class test(models.Model):
     isVisible = models.BooleanField('是否可见', default=False)
 
     def __str__(self):
-        return str(self.testID)
+        return str(self.testID) + self.school + ' / ' + self. classInfo + ' / ' + self.articleID.title
 
     class Meta:
         verbose_name = '04 - 测试'
@@ -55,7 +74,8 @@ class test(models.Model):
 class testResult(models.Model):
     testID = models.ForeignKey(
         test, on_delete=models.CASCADE, related_name='test_rank', verbose_name='测试编号')
-    stuName = models.CharField('姓名', max_length=4)
+    UID = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='test_uid',verbose_name='学生姓名')
     speed = models.IntegerField('速度', default=0)
     correctRate = models.DecimalField(
         '正确率', max_digits=4, decimal_places=1, default=0)
@@ -64,22 +84,4 @@ class testResult(models.Model):
 
     class Meta:
         verbose_name = '05 - 测试结果'
-        verbose_name_plural = verbose_name
-
-
-class practiceResult(models.Model):
-    articleID = models.ForeignKey(
-        article, on_delete=models.CASCADE, related_name='practice_rank', verbose_name='文章')
-    stuName = models.CharField('姓名', max_length=4)
-    speed = models.IntegerField('速度', default=0)
-    correctRate = models.DecimalField(
-        '正确率', max_digits=4, decimal_places=1, default=0)
-    score = models.DecimalField(
-        '得分', max_digits=10, decimal_places=2, default=0)
-
-    def __str__(self):
-        return self.stuName
-
-    class Meta:
-        verbose_name = '03 - 练习结果'
         verbose_name_plural = verbose_name

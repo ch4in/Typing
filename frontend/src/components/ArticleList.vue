@@ -39,6 +39,7 @@ export default {
   },
   mounted () {
     this.$store.state.isPractice = true
+    console.log(this.$store.state.isPractice)
     this.currentPage = 1
     var _this = this
     axios

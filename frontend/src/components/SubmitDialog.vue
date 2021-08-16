@@ -8,9 +8,9 @@
       @closed="handleBack"
     >
       <el-row>
-        <el-col :span="12">学校：{{ this.$store.state.school }}</el-col>
-        <el-col :span="12">班级：{{ this.$store.state.class }}</el-col>
-        <el-col :span="12">姓名：{{ this.$store.state.name }}</el-col>
+        <el-col :span="12">学校：{{ this.$store.state.user.school }}</el-col>
+        <el-col :span="12">班级：{{ this.$store.state.user.stuClass }}</el-col>
+        <el-col :span="12">姓名：{{ this.$store.state.user.stuName }}</el-col>
         <el-col :span="12">
           速度：{{ testInfo.speed }}
           <span v-if="testInfo.type === 'Cn'">WPM</span>
@@ -47,18 +47,19 @@ export default {
     // 打开dialog时直接提交成绩
     submit() {
       var params;
+      console.log(this.$store.state.isPractice)
       if (this.$store.state.isPractice == true) {
         params = new URLSearchParams({
           title: this.$store.state.article.title,
-          stuName: this.$store.state.name,
+          stuID: this.$store.state.user.stuID,
           speed: this.testInfo.speed,
           correctRate: this.testInfo.correctRate,
           score: this.testInfo.score,
         });
       } else {
         params = new URLSearchParams({
-          testID: this.$store.state.testID,
-          stuName: this.$store.state.name,
+          testID: this.$store.state.testInfo.testID,
+          stuID: this.$store.state.user.stuID,
           speed: this.testInfo.speed,
           correctRate: this.testInfo.correctRate,
           score: this.testInfo.score,

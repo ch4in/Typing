@@ -22,12 +22,18 @@ class articleAdmin(admin.ModelAdmin):
 
 
 class practiceResultAdmin(admin.ModelAdmin):
-    list_display = ("articleID", "stuName", 'speed',
+    list_display = ("测试学校", "测试班级","UID", "articleID", 'speed',
                     'correctRate', 'score')
-    fields = ("articleID", 'stuName', 'speed', 'correctRate', 'score')
-    search_fields = ('stuName',)
+    fields = ("articleID", 'UID', 'speed', 'correctRate', 'score')
+    search_fields = ('UID',)
     list_filter = ("articleID", )
-    list_per_page = 50
+    list_per_page = 500
+
+    def 测试学校(self, obj):
+        return obj.UID.school
+
+    def 测试班级(self, obj):
+        return obj.UID.stuClass
 
 
 class testAdmin(admin.ModelAdmin):
@@ -38,10 +44,10 @@ class testAdmin(admin.ModelAdmin):
 
 
 class testResultAdmin(admin.ModelAdmin):
-    list_display = ("testID", "测试学校", "测试班级", "stuName", 'speed',
+    list_display = ("testID", "测试学校", "测试班级", "学生姓名", 'speed',
                     'correctRate', 'score')
-    fields = ("testID", 'stuName', 'speed', 'correctRate', 'score')
-    search_fields = ('stuName',)
+    fields = ("testID", 'UID', 'speed', 'correctRate', 'score')
+    search_fields = ("testID",'UID',)
     list_filter = ("testID", )
     list_per_page = 50
 
@@ -50,6 +56,8 @@ class testResultAdmin(admin.ModelAdmin):
 
     def 测试班级(self, obj):
         return obj.testID.classInfo
+    def 学生姓名(self,obj):
+        return obj.UID.stuName
 
 
 admin.site.register(models.User, UserAdmin)

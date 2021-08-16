@@ -68,9 +68,9 @@ export default {
         })
     },
     loadArticle (index, row) {
-      this.$store.state.school = row.school
-      this.$store.state.class = row.class
-      this.$store.state.totalTestTime = row.time
+      this.$store.state.user.school = row.school
+      this.$store.state.user.stuClass = row.class
+      this.$store.state.testInfo.totalTestTime = row.time
       var _this = this
       axios
         .get('/get_article/', {
@@ -82,7 +82,7 @@ export default {
           _this.$store.state.article['title'] = response.data['title']
           _this.$store.state.article['content'] = response.data['content']
           _this.$store.state.article['type'] = response.data['type']
-          _this.$store.state.testID = response.data['testID']
+          _this.$store.state.testInfo.testID = response.data['testID']
           _this.$router.push('article')
         })
         .catch(function (error) {
@@ -90,7 +90,7 @@ export default {
         })
     },
     handleRank (index, row) {
-      this.$store.state.testID = this.tableData[index].testID
+      this.$store.state.testInfo.testID = this.tableData[index].testID
       if (row.type == '中文') {
         this.$store.state.article.type = 'Cn'
       } else if (row.type == '英文') {
@@ -102,6 +102,7 @@ export default {
   },
   mounted () {
     this.$store.state.isPractice = false
+    console.log(this.$store.state.isPractice)
     var _this = this
     axios
       .get('/get_testList/')

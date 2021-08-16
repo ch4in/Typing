@@ -47,7 +47,7 @@ export default {
     if (this.$store.state.isPractice) {
       id = this.$store.state.article.title;
     } else {
-      id = this.$store.state.testID;
+      id = this.$store.state.testInfo.testID;
     }
     axios
       .get("/get_rankList/", {
