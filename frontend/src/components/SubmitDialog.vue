@@ -47,7 +47,6 @@ export default {
     // 打开dialog时直接提交成绩
     submit() {
       var params;
-      console.log(this.$store.state.isPractice)
       if (this.$store.state.isPractice == true) {
         params = new URLSearchParams({
           title: this.$store.state.article.title,

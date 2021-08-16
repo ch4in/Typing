@@ -1,9 +1,7 @@
 <template>
   <div class="rankList">
     <h1>
-      排名<span v-show="this.$store.state.isPractice">
-        - {{ this.$store.state.article.title }}</span
-      >
+      排名<span v-if="this.$store.state.isPractice"> - {{ this.$store.state.article.title }}</span>
     </h1>
     <el-table
       :data="tableData"
@@ -25,6 +23,8 @@
           <span v-else>{{ scope.$index + 1 }}</span>
         </template>
       </el-table-column>
+      <el-table-column prop="school" label="学校" v-if="this.$store.state.isPractice"></el-table-column>
+      <el-table-column prop="stuClass" label="班级" v-if="this.$store.state.isPractice"></el-table-column>
       <el-table-column prop="stuName" label="姓名"></el-table-column>
       <el-table-column prop="correctRate" label="正确率%"></el-table-column>
       <el-table-column prop="speed" :label="labelSpeed"></el-table-column>
@@ -57,7 +57,12 @@ export default {
         },
       })
       .then(function (response) {
+        console.log()
+        for(var i=0;i<response.data.length;i++){
+          response.data[i].stuClass = _this.GraduationNumToclass(response.data[i].stuClass)
+        }
         _this.tableData = response.data;
+        
       })
       .catch(function (error) {
         console.log(error);

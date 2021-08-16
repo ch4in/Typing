@@ -69,7 +69,6 @@ def get_article(request):
 
 
 def post_testResult(request):
-    print(request.POST.get('testID'))
     if request.POST.get('testID'):
         tr = testResult()
         tr.testID = test.objects.select_related().get(
@@ -107,6 +106,8 @@ def get_rankList(request):
     res = []
     for (x, i) in enumerate(rankListSet):
         t = {}
+        t['school'] = i.UID.school
+        t['stuClass'] = i.UID.stuClass
         t['stuName'] = i.UID.stuName
         t['speed'] = i.speed
         t['correctRate'] = i.correctRate

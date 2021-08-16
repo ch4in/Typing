@@ -102,7 +102,6 @@ export default {
   },
   mounted () {
     this.$store.state.isPractice = false
-    console.log(this.$store.state.isPractice)
     var _this = this
     axios
       .get('/get_testList/')
