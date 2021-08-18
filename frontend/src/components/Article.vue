@@ -71,7 +71,7 @@ export default {
   },
   computed: {
     totalTime () {
-      return this.$store.state.testInfo.totalTestTime * 60 // 总时间*60
+      return this.$store.state.testInfo.totalTestTime * 60 // 总时间（分）*60
     },
     speed () {
       return parseInt((this.typedWordNum / (this.totalTime - this.time)) * 60)
@@ -115,7 +115,7 @@ export default {
       history.pushState(null, null, document.URL)
     })
 
-    // 整理Article
+    // 整理Article，按中英文、窗口大小切割文章，放入lineList
     if (this.articleType == 'En') {
       var wordNum = Math.floor(
         document.getElementsByClassName('article')[0].clientWidth / 12.5
@@ -197,25 +197,6 @@ export default {
         this.$refs.inputRef[this.focusedLine + 1].focus()
       }
     },
-    countDown (isFirstTime) {
-      if (isFirstTime) this.time = this.totalTime
-      this.clock = setInterval(() => {
-        var minute = 0
-        var second = 0
-        if (this.time > 0) {
-          minute = Math.floor(this.time / 60)
-          second = Math.floor(this.time) - minute * 60
-          this.time--
-        } else {
-          // 时间到
-          this.confirmInfo(false)
-        }
-        if (minute <= 9) minute = '0' + minute
-        if (second <= 9) second = '0' + second
-        this.timeStr = minute + '分' + second + '秒'
-      }, 1000)
-    },
-
     timePause () {
       if (this.pauseTime > 0) {
         this.isPause = !this.isPause
@@ -251,14 +232,39 @@ export default {
         }
       }
     },
+    // 倒计时
+    countDown (isFirstTime) {
+      if (isFirstTime) this.time = this.totalTime
+      this.clock = setInterval(() => {
+        var minute = 0
+        var second = 0
+        if (this.time > 0) {
+          minute = Math.floor(this.time / 60)
+          second = Math.floor(this.time) - minute * 60
+          this.time--
+        } else {
+          // 时间到
+          this.confirmInfo(false)
+        }
+        if (minute <= 9) minute = '0' + minute
+        if (second <= 9) second = '0' + second
+        this.timeStr = minute + '分' + second + '秒'
+      }, 1000)
+    },
     // 确认信息
     confirmInfo (isFinished) {
       clearInterval(this.clock)
       this.$refs.inputRef[this.focusedLine].blur()
+      // 忽略最后错的
+      var j = this.inputList[this.focusedLine].length - 1
+      j = j < this.lineList[this.focusedLine].length-1 ? j:this.lineList[this.focusedLine].length
+      while(this.inputList[this.focusedLine][j] !== this.lineList[this.focusedLine][j]){
+        j--
+      }
+      this.inputList[this.focusedLine] = this.inputList[this.focusedLine].substr(0, j+1)
       // 计算正确率
       if (isFinished === false) {
-        var c = 0
-        var t = 0
+        var c = 0, t = 0
         for (var i = 0; i < this.inputList.length; i++) {
           for (var j = 0; j < this.inputList[i].length; j++) {
             if (this.inputList[i][j] === this.lineList[i][j]) {
@@ -282,6 +288,7 @@ export default {
   },
   watch: {
     inputList (ov, nv) {
+      // 状态栏百分比显示
       var p = Math.floor((this.typedWordNum / this.totalWordNum) * 1000) / 10
       this.percentage = p <= 100 ? p : 100
 
@@ -304,7 +311,7 @@ export default {
       // 完成一行
       if (nv[i].length === this.lineList[i].length) {
         // 自动换到下一行
-        if (this.focusedLine + 1 !== nv.length) {
+        if (this.focusedLine + 1 !== this.lineList.length) {
           this.focusedLine++
           this.isDisabled[this.focusedLine] = false
           this.$nextTick(() => {
