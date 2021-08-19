@@ -11,7 +11,7 @@
             },
             {
                 "name": "青骄第二课堂",
-                "info": "观看视频动画，学习禁毒知识",
+                "info": "看视频动画，学禁毒知识",
                 "link": "https://2-class.com/",
                 "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
                 "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
@@ -19,11 +19,11 @@
         ]
     },
     {
-        "title": "打字",
+        "title": "打字Typing",
         "content": [
             {
-                "name": "Typing",
-                "info": "打字测试",
+                "name": "Typing打字测试平台",
+                "info": "打字练习与测试",
                 "link": "#/login"
             },
             {
@@ -34,11 +34,11 @@
         ]
     },
     {
-        "title": "编程",
+        "title": "编程Coding",
         "content": [
             {
                 "name": "网易卡搭社区",
-                "info": "编程社区，分享有趣的Scratch作品",
+                "info": "分享有趣的Scratch编程作品",
                 "link": "https://kada.163.com/"
             },
             {
@@ -49,9 +49,8 @@
             },
             {
                 "name": "编程猫社区",
-                "info": "Scratch作品",
-                "link": "https://shequ.codemao.cn/",
-                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+                "info": "源码编辑器",
+                "link": "https://shequ.codemao.cn/"
             },
             {
                 "name": "Blockly Games",
@@ -63,6 +62,17 @@
                 "info": "一个全球性的编程学习活动",
                 "link": "https://code.org/hourofcode/overview"
             }
+        ]
+    },
+    {
+        "title": "",
+        "content": [
+            {
+                "name": "全历史",
+                "info": "多维度看历史",
+                "link": "https://www.allhistory.com/"
+            }
+
         ]
     }
 ]

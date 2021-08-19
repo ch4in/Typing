@@ -266,7 +266,7 @@ export default {
       if (isFinished === false) {
         var c = 0, t = 0
         for (var i = 0; i < this.inputList.length; i++) {
-          for (var j = 0; j < this.inputList[i].length; j++) {
+          for (j = 0; j < this.inputList[i].length; j++) {
             if (this.inputList[i][j] === this.lineList[i][j]) {
               c++
             }
