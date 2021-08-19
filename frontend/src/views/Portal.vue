@@ -3,41 +3,57 @@
     <el-container>
       <el-header>
         <el-row>
-          <img src="@/assets/portal.png" style="width:44px">
+          <img src="@/assets/portal.png" style="width: 44px" />
         </el-row>
       </el-header>
 
-      <marquee direction="left" onmouseover="this.stop()" onmouseout="this.start()">
+      <marquee
+        direction="left"
+        onmouseover="this.stop()"
+        onmouseout="this.start()"
+      >
         <p></p>
       </marquee>
 
       <div v-for="(g, gi) in nav" :key="gi">
         <el-divider content-position="left">
-          <h2>{{g.title}}</h2>
+          <h2>{{ g.title }}</h2>
         </el-divider>
         <el-row :gutter="10">
-          <el-col v-for="(c,ci) in g.content" :key="ci" class="tabwithbutton"
+          <el-col
+            v-for="(c, ci) in g.content"
+            :key="ci"
+            class="tabwithbutton"
             :xs="24"
             :sm="12"
             :md="8"
-            :lg="6">
+            :lg="6"
+          >
             <a :href="c.link" target="_blank">
-              <el-card shadow="hover" class="tab" :body-style="{padding: '0px',align:'center'}">
-
-                    <el-row class="tab-header">{{c.name}}</el-row>
-                    <el-row class="tab-content" style="font-size:12px;">{{c.info}}</el-row>
-
+              <el-card
+                shadow="hover"
+                class="tab"
+                :body-style="{ padding: '0px', align: 'center' }"
+              >
+                <el-row class="tab-header">{{ c.name }}</el-row>
+                <el-row class="tab-content" style="font-size: 12px">{{
+                  c.info
+                }}</el-row>
               </el-card>
             </a>
             <el-row class="tab-bottom">
               <el-col :span="c.tutorial && c.account ? 12 : 24">
                 <a v-if="c.tutorial" :href="c.tutorial">
-                  <el-button type="primary" plain size="mini">使用教程</el-button>
+                  <el-button type="primary" plain size="mini"
+                    >使用教程</el-button
+                  >
                 </a>
               </el-col>
               <el-col :span="c.tutorial && c.account ? 12 : 24">
                 <a v-if="c.account" :href="c.account">
-                  <el-button type="primary" plain size="mini">账号密码</el-button>
+                  <el-button type="primary" plain size="mini"
+                    >账号密码</el-button
+                  >
                 </a>
               </el-col>
             </el-row>
@@ -48,30 +64,25 @@
   </div>
 </template>
 <script>
-import nav from '../assets/nav.json'
+import nav from "../assets/nav.json";
 export default {
-  name: 'Portal',
-  data () {
+  name: "Portal",
+  data() {
     return {
-      nav
-    }
+      nav,
+    };
   },
-  methods:{
-    getImgUrl(pic) {
-      return require('@/assets/navicon/'+pic)
-    }
+  created() {
+    document.title = "Portal导航";
   },
-  created () {
-    document.title = 'Portal导航'
-  }
-}
+};
 </script>
 <style scoped>
 .portal {
   padding: 0 5%;
 }
 
-.tabwithbutton{
+.tabwithbutton {
   min-height: 120px;
 }
 .tab {
@@ -82,10 +93,6 @@ export default {
 .tab-header {
   font-size: 17px;
   font-weight: bolder;
-}
-.tab-content {
-}
-.tab-bottom {
 }
 a {
   text-decoration: none;

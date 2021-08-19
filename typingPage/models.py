@@ -11,7 +11,7 @@ class User(models.Model):
     points = models.IntegerField('积分', default=0)
 
     def __str__(self):
-        return self.stuName
+        return self.school + '/' +self.stuClass+'/'+self.stuName
 
     class Meta:
         verbose_name = '01 - 用户'

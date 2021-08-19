@@ -22,18 +22,13 @@ class articleAdmin(admin.ModelAdmin):
 
 
 class practiceResultAdmin(admin.ModelAdmin):
-    list_display = ("测试学校", "测试班级","UID", "articleID", 'speed',
+    list_display = ("UID", "articleID", 'speed',
                     'correctRate', 'score')
     fields = ("articleID", 'UID', 'speed', 'correctRate', 'score')
-    search_fields = ('UID',)
-    list_filter = ("articleID", )
+    search_fields = ("UID__school","UID__stuClass","UID__stuName",)
+    list_filter = ("articleID",)
     list_per_page = 500
-
-    def 测试学校(self, obj):
-        return obj.UID.school
-
-    def 测试班级(self, obj):
-        return obj.UID.stuClass
+    autocomplete_fields = ["articleID","UID"]  # 带有搜索框的外键选择框
 
 
 class testAdmin(admin.ModelAdmin):
@@ -41,21 +36,19 @@ class testAdmin(admin.ModelAdmin):
                     'articleID', 'testTotalTime', 'entryCode', 'isVisible')
     fields = ('school', 'classInfo', 'articleID',
               'testTotalTime', 'entryCode', 'isVisible')
+    search_fields = ("school", 'classInfo',)
+    list_filter = ("school",)
 
 
 class testResultAdmin(admin.ModelAdmin):
-    list_display = ("testID", "测试学校", "测试班级", "学生姓名", 'speed',
+    list_display = ("testID","学生姓名", 'speed',
                     'correctRate', 'score')
     fields = ("testID", 'UID', 'speed', 'correctRate', 'score')
-    search_fields = ("testID",'UID',)
+    search_fields = ("testID__testID","UID__school","UID__stuClass","UID__stuName",)
     list_filter = ("testID", )
     list_per_page = 50
+    autocomplete_fields = ["UID","testID"]  # 带有搜索框的外键选择框
 
-    def 测试学校(self, obj):
-        return obj.testID.school
-
-    def 测试班级(self, obj):
-        return obj.testID.classInfo
     def 学生姓名(self,obj):
         return obj.UID.stuName
 
