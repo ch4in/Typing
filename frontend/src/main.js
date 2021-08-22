@@ -18,10 +18,10 @@ new Vue({
 }).$mount('#app')
 
 router.beforeEach((to, from, next) => {
-  if (store.state.name !== '') {
+  if (store.state.user.stuName !== '') {
     next()
   } else {
-    if (to.path === '/login') {
+    if (to.path === '/login' || to.path==='/portal') {
       next()
     } else {
       next({ path: '/login' })

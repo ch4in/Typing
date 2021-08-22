@@ -3,8 +3,7 @@
     <el-row>
       <el-col>
         <h1>
-          Typing
-          <br />打字测试平台
+          登录
         </h1>
       </el-col>
     </el-row>
@@ -109,7 +108,7 @@ export default {
               _this.$store.state.user.stuName = _this.uname;
               _this.$store.state.user.stuID = res.data;
               _this.$store.commit("set_name", _this.uname);
-              _this.$router.push("/typing");
+              _this.$router.go(-1);
             } else {
               _this.loginError = 1;
             }
@@ -130,8 +129,12 @@ export default {
 
 <style>
 .login {
-  margin: 10% auto;
+  margin:auto;
   width: 250px;
+  position:absolute;  
+   left:50%;  
+   top:20%;  
+   margin-left:-125px;
 }
 .el-row {
   margin: 10px 0;

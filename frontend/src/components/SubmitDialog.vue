@@ -48,9 +48,12 @@ export default {
     submit() {
       var params;
       if (this.$store.state.isPractice == true) {
+        //练习数据
         params = new URLSearchParams({
           title: this.$store.state.article.title,
-          stuID: this.$store.state.user.stuID,
+          school: this.$store.state.user.school,
+          stuClass: this.$store.state.user.stuClass,
+          stuName: this.$store.state.user.stuName,
           speed: this.testInfo.speed,
           correctRate: this.testInfo.correctRate,
           score: this.testInfo.score,
