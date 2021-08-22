@@ -2,12 +2,13 @@
   <div class="home">
     <el-menu :default-active="activeIndex" mode="horizontal" @select="handleSelect">
       <el-menu-item id="logo">
-        <img alt="Typing" src="@/assets/logo.png" />
+        <img alt="Typing" src="@/assets/typing.png" />
         <h1>Typing</h1>
       </el-menu-item>
 
       <el-menu-item index="articleList">练习</el-menu-item>
       <el-menu-item index="testList">测试</el-menu-item>
+      <el-menu-item index="portal">返回导航</el-menu-item>
       <!-- <el-menu-item index="finger">指法练习</el-menu-item> -->
       <!-- <el-menu-item index="word">单词练习</el-menu-item> -->
 
@@ -31,7 +32,7 @@ export default {
   },
   methods: {
     logoutFn () {
-      this.$store.state.name = ''
+      this.$store.state.user.stuName = ''
       this.$router.push('/login')
     },
     handleSelect (key, keyPath) {
@@ -39,12 +40,14 @@ export default {
         this.$router.push('/typing/testList')
       } else if (key == 'articleList') {
         this.$router.push('/typing/articleList')
+      }else if(key == 'portal'){
+        this.$router.push('/portal')
       }
     }
   },
   component: {},
   created () {
-    document.title = 'Typing - 打字测试'
+    document.title = 'Typing - 打字'
   },
   mounted () {
 

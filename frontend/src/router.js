@@ -7,12 +7,14 @@ import Selection from './components/Selection.vue'
 import TestList from './components/TestList.vue'
 import ArticleList from './components/ArticleList.vue'
 import Markdown from './views/Markdown.vue'
+import Classwork from './views/Classwork.vue'
 
 Vue.use(Router)
 
 export default new Router({
   routes: [{
     path: '/portal',
+    name: 'portal',
     component: Portal,
     meta: {
       title: 'Portal导航'
@@ -24,7 +26,15 @@ export default new Router({
     meta: {
       title: '任务单'
     }
-  }, {
+  }, 
+  {
+    path: '/classwork',
+    component: Classwork,
+    meta: {
+      title: '课堂作业'
+    }
+  }, 
+  {
     path: '/login',
     component: Login,
     meta: {
@@ -74,9 +84,10 @@ export default new Router({
     }
     ]
   },
+  
   {
     path: '/',
-    redirect: '/login'
+    redirect: 'portal'
   }
   ]
 })

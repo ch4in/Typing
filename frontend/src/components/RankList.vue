@@ -57,12 +57,13 @@ export default {
         },
       })
       .then(function (response) {
-        console.log()
-        for(var i=0;i<response.data.length;i++){
-          response.data[i].stuClass = _this.GraduationNumToclass(response.data[i].stuClass)
+        // console.log(response)
+        if(_this.$store.state.isPractice){
+          for(var i=0;i<response.data.length;i++){
+            response.data[i].stuClass = _this.GraduationNumToclass(response.data[i].stuClass)
+          }
         }
         _this.tableData = response.data;
-        
       })
       .catch(function (error) {
         console.log(error);

@@ -18,10 +18,10 @@ new Vue({
 }).$mount('#app')
 
 router.beforeEach((to, from, next) => {
-  if (store.state.name !== '') {
+  if (store.state.user.stuName !== '') {
     next()
   } else {
-    if (to.path === '/login') {
+    if (to.path === '/login' || to.path==='/portal') {
       next()
     } else {
       next({ path: '/login' })
@@ -76,6 +76,8 @@ Vue.prototype.GraduationNumToclass = function (s) {
       ans = "五"
     }else if (ans - y == 1) {
       ans = "六"
+    }else{
+      return s
     }
   } else {
     //上半年
@@ -87,6 +89,8 @@ Vue.prototype.GraduationNumToclass = function (s) {
       ans = "五"
     }else if (ans - y == 0) {
       ans = "六"
+    }else{
+      return s
     }
   }
   return ans + "（" + s[3] + "）班";

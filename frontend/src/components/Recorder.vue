@@ -23,13 +23,13 @@
         <el-col :span="6">
           <span>时间：{{ time }}</span>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="6" v-show="this.$store.state.isPractice">
           <el-button size="mini" @click="timePause()">{{
             this.isPause ? "开始" : "暂停"
           }}</el-button
           ><span> 还可以暂停{{ pauseTime }}次</span>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="this.$store.state.isPractice?6:12">
           <el-progress
             :text-inside="true"
             :stroke-width="28"
