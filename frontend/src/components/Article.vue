@@ -26,10 +26,10 @@
         @focus="focus_line(i)"
         @keyup.delete.native="key_delete"
         @keyup.enter.native="key_enter"
-        
+        @paste.native.capture.prevent="false"
         :disabled="isDisabled[i]"
       ></el-input>
-  <!-- @paste.native.capture.prevent="false" -->
+  <!--  -->
     </div>
     <SubmitDialog
       :visible="isDialogVisible"
@@ -108,7 +108,7 @@ export default {
   },
   mounted () {
     document.oncontextmenu = new Function('event.returnValue=false')
-    // document.onselectstart = new Function('event.returnValue=false')
+    document.onselectstart = new Function('event.returnValue=false')
     history.pushState(null, null, document.URL)
     // 使浏览器返回按钮无效，防止学生出现光标未定位到input中按了退格键，导致返回前一页
     window.addEventListener('popstate', function () {

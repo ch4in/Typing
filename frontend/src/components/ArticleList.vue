@@ -111,6 +111,6 @@ export default {
 
 <style scoped>
 .articleList {
-  margin: 50px 100px;
+  margin: 0 100px;
 }
 </style>

@@ -6,14 +6,6 @@
                 "name": "作业提交",
                 "info": "课堂作业提交",
                 "link": "#/classwork"
-            },
-            {
-                "name": "青骄第二课堂",
-                "info": "看视频动画，学禁毒知识",
-                "link": "https://2-class.com/",
-                "target":"_blank",
-                "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
-                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
             }
         ]
     },
@@ -29,7 +21,7 @@
                 "name": "ZType",
                 "info": "打字游戏 - Type to Shoot",
                 "link": "https://zty.pe/",
-                "target":"_blank"
+                "target": "_blank"
             }
         ]
     },
@@ -40,32 +32,32 @@
                 "name": "网易卡搭社区",
                 "info": "分享有趣的Scratch编程作品",
                 "link": "https://kada.163.com/",
-                "target":"_blank"
+                "target": "_blank"
             },
             {
                 "name": "卡搭校园",
                 "info": "在课堂上，创作你自己的Scratch作品",
                 "link": "http://school.kada.163.com/",
-                "target":"_blank",
+                "target": "_blank",
                 "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
             },
             {
                 "name": "编程猫社区",
                 "info": "源码编辑器",
                 "link": "https://shequ.codemao.cn/",
-                "target":"_blank"
+                "target": "_blank"
             },
             {
                 "name": "Blockly Games",
                 "info": "为未来的程序员所设计的游戏",
                 "link": "http://www.kidscode.cn/blockly_games/zh-hans/index.html",
-                "target":"_blank"
+                "target": "_blank"
             },
             {
                 "name": "编程一小时",
                 "info": "一个全球性的编程学习活动",
                 "link": "https://code.org/hourofcode/overview",
-                "target":"_blank"
+                "target": "_blank"
             }
         ]
     },
@@ -76,11 +68,23 @@
                 "name": "温州中小学云图书馆",
                 "info": "云图书馆",
                 "link": "http://yuntu.wzer.net/",
-                "target":"_blank",
+                "target": "_blank",
                 "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
                 "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
             }
-
+        ]
+    },
+    {
+        "title": "在线学习 E-Learning",
+        "content": [
+            {
+                "name": "青骄第二课堂",
+                "info": "看视频动画，学禁毒知识",
+                "link": "https://2-class.com/",
+                "target": "_blank",
+                "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
+                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+            }
         ]
     }
 ]

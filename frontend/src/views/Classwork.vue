@@ -3,7 +3,7 @@
     <el-container>
       <el-header style="margin: 20px 0">
         <el-page-header
-          @back="() => this.$router.go(-1)"
+          @back="() => this.$router.push('/')"
           content="课堂任务提交"
         ></el-page-header>
         <el-divider></el-divider>
@@ -24,15 +24,16 @@
                 highlight-current-row
                 @current-change="handleCurrentChange"
               >
-                <el-table-column prop="taskTitle" label="任务名称" width="170">
+                <el-table-column prop="taskTitle" label="任务名称" width="170" align="center">
                 </el-table-column>
-                <el-table-column prop="taskContent" label="任务描述">
+                <el-table-column prop="taskContent" label="任务描述" align="center">
                 </el-table-column>
                 <!-- <el-table-column prop="1" label="要求文件数" width="91"> </el-table-column> -->
                 <el-table-column
                   prop="isUploaded"
                   label="是否已提交"
                   width="108"
+                  align="center"
                 >
                   <template slot-scope="scope">
                     <i
@@ -109,15 +110,18 @@ export default {
           message: "提交成功",
           type: "success",
         });
-      } else if (res == "exist") {
-        
+      } else{
+        this.$notify.error({
+          title: "错误",
+          message: "提交错误"
+        });
       }
     },
     beforeUpload(file){
       if(this.currentRow.isUploaded){
         let _this = this
         return new Promise(function(resolve, reject){
-          _this.$confirm('你已经上传过文件了，此操作将替换已上传的文件，是否继续？', '提示', {
+          _this.$confirm('你已经上传过文件了，重新上传将替换已上传的文件，是否继续？', '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning'

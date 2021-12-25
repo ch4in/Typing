@@ -116,6 +116,6 @@ export default {
 </script>
 <style scoped>
 .testList{
-  margin: 50px 100px;
+  margin: 0 100px;
 }
 </style>

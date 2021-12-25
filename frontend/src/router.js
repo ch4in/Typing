@@ -88,6 +88,10 @@ export default new Router({
   {
     path: '/',
     redirect: 'portal'
+  },
+  {
+    path: '*',
+    redirect: 'portal'
   }
   ]
 })

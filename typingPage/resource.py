@@ -8,4 +8,4 @@ class UserResource(resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         exclude = ('uid', 'points')
-        import_id_fields = ('school', 'stuClass', 'stuName')
+        import_id_fields = ('SchoolClass', 'stuName')

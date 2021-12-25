@@ -7,7 +7,7 @@ from typingPage import models, resource
 from import_export.admin import ImportExportModelAdmin
 
 class SchoolClassAdmin(admin.ModelAdmin):
-    list_display = ('school', 'classNum')
+    list_display = ('id','school', 'classNum')
     fields = ('school', 'classNum')
     search_fields = ('school', 'classNum')
 

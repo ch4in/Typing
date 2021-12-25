@@ -108,7 +108,7 @@ export default {
               _this.$store.state.user.stuName = _this.uname;
               _this.$store.state.user.stuID = res.data;
               _this.$store.commit("set_name", _this.uname);
-              _this.$router.go(-1);
+              _this.$router.push('/');
             } else {
               _this.loginError = 1;
             }

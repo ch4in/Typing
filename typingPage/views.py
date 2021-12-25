@@ -153,7 +153,7 @@ def get_rankList(request):
 
 def check_entryCode(request):
     code = request.GET['code']
-    id = request.GET['ID']
+    id = request.GET['id']
     res = code == test.objects.get(testID=id).entryCode
     return HttpResponse(json.dumps({'res': res}), content_type="application/json")
 
@@ -187,7 +187,8 @@ def upload_classwork(request):
         myFile = request.FILES.get("file", None)
         if not myFile:
             return HttpResponse("NO")
-        print(request.POST['isUploaded'])
+        # print(request.POST['isUploaded'])
+        # 删除原有作业
         if request.POST['isUploaded'] != '0':
             os.remove(classwork.objects.filter(task=request.POST['taskID'],UID=request.POST['stuID'])[0].filePath)
         taskID = task.objects.get(id=request.POST['taskID'])
@@ -222,7 +223,7 @@ def download_classwork(request):
         f = open(fPath, 'rb')
         res = FileResponse(f)
         res['Content-Type']='application/octet-stream'
-        res['filename']= os.path.split(fPath)[1]
-        # res['Content-Disposition']='attachment;filename="models.py"'
+        res['filename'] = os.path.split(fPath)[1]
+        res['Content-Disposition']='attachment;filename="{0}"'.format(res['filename'])
         return res
 
