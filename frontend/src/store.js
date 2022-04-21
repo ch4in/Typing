@@ -23,10 +23,14 @@ export default new Vuex.Store({
     isPractice: false,
   },
   mutations: {
-    set_name (state, n) {
+    set_name (state, n, c) {
       state.name = n
       localStorage.setItem('stuname', n)
+      
     },
+    set_class(state, c){
+      localStorage.setItem('stuclass', c)
+    }
   },
   actions: {
   }

@@ -24,9 +24,18 @@
                 highlight-current-row
                 @current-change="handleCurrentChange"
               >
-                <el-table-column prop="taskTitle" label="任务名称" width="170" align="center">
+                <el-table-column
+                  prop="taskTitle"
+                  label="任务名称"
+                  width="170"
+                  align="center"
+                >
                 </el-table-column>
-                <el-table-column prop="taskContent" label="任务描述" align="center">
+                <el-table-column
+                  prop="taskContent"
+                  label="任务描述"
+                  align="center"
+                >
                 </el-table-column>
                 <!-- <el-table-column prop="1" label="要求文件数" width="91"> </el-table-column> -->
                 <el-table-column
@@ -96,7 +105,7 @@ export default {
     handleCurrentChange(currentRow, oldCurrentRow) {
       this.currentRow = currentRow;
       this.info["taskID"] = currentRow.id;
-      this.info['isUploaded'] = this.currentRow.isUploaded
+      this.info["isUploaded"] = this.currentRow.isUploaded;
     },
     handleRowClick(row) {
       // @row-click="handleRowClick"
@@ -104,36 +113,43 @@ export default {
     handlerSuccess(res, file) {
       if (res == "OK") {
         this.currentRow.isUploaded = 1;
-        this.info['isUploaded'] = this.currentRow.isUploaded
+        this.info["isUploaded"] = this.currentRow.isUploaded;
         this.$notify({
           title: "成功",
           message: "提交成功",
           type: "success",
         });
-      } else{
+      } else {
         this.$notify.error({
           title: "错误",
-          message: "提交错误"
+          message: "提交错误",
         });
       }
     },
-    beforeUpload(file){
-      if(this.currentRow.isUploaded){
-        let _this = this
-        return new Promise(function(resolve, reject){
-          _this.$confirm('你已经上传过文件了，重新上传将替换已上传的文件，是否继续？', '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }).then(() => {
-            resolve();
-          }).catch(() => {
-            _this.$message({
-              type: 'info',
-              message: '已取消'
+    beforeUpload(file) {
+      if (this.currentRow.isUploaded) {
+        let _this = this;
+        return new Promise(function (resolve, reject) {
+          _this
+            .$confirm(
+              "你已经上传过文件了，重新上传将替换已上传的文件，是否继续？",
+              "提示",
+              {
+                confirmButtonText: "确定",
+                cancelButtonText: "取消",
+                type: "warning",
+              }
+            )
+            .then(() => {
+              resolve();
+            })
+            .catch(() => {
+              _this.$message({
+                type: "info",
+                message: "已取消",
+              });
+              reject();
             });
-            reject();
-          });
         });
       }
     },
@@ -152,20 +168,25 @@ export default {
         data: new URLSearchParams({
           stuID: this.$store.state.user.stuID,
           taskID: this.currentRow.id,
-          
         }),
         responseType: "blob",
       })
         .then(function (response) {
-          var link = document.createElement("a");
-          var href = window.URL.createObjectURL(new Blob([response.data])); //创建下载的链接
-          link.href = href;
-          link.download = response.headers.filename; //下载后文件名
-          document.body.appendChild(link);
-          link.click(); //点击下载
-          document.body.removeChild(link); //下载完成移除元素
-          window.URL.revokeObjectURL(href); //释放掉blob对象
-          console.log(response.headers.filename);
+          let blob = new Blob([response.data])
+          let fileNameEncode = response.headers['content-disposition'].split("filename=")[1];
+          // 解码
+          let fileName = decodeURIComponent(fileNameEncode)
+          if (window.navigator.msSaveOrOpenBlob) {
+            navigator.msSaveBlob(blob, fileName);
+          } else {
+            var link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            link.download = fileName.replace(new RegExp('"', 'g'), '');
+            link.click();
+            //释放内存
+            window.URL.revokeObjectURL(link.href);
+          }
+          console.log(fileName);
         })
         .catch(function (error) {
           console.log(error);
@@ -187,7 +208,7 @@ export default {
         _this.info = {
           stuID: _this.$store.state.user.stuID,
           taskID: _this.tableData[0].id,
-          isUploaded: _this.tableData[0].isUploaded
+          isUploaded: _this.tableData[0].isUploaded,
         };
       })
       .catch(function (error) {

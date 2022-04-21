@@ -55,10 +55,10 @@ export default {
   name: "Login",
   data() {
     return {
-      uname: "",
+      uname: localStorage.stuname ? localStorage.stuname: "",
       selectSchool: "沙城一小",
       optionsSchool: ["沙城一小"],
-      selectClass: "四（1）班",
+      selectClass: localStorage.stuclass ? localStorage.stuclass: "四（1）班",
       optionsClass: [
         "四（1）班",
         "四（2）班",
@@ -91,7 +91,7 @@ export default {
         var params = new URLSearchParams({
           school: this.selectSchool,
           stuClass: gn,
-          stuName: this.uname,
+          stuName: this.uname.trim(),
         });
         // 登录验证
         var _this = this;
@@ -108,6 +108,8 @@ export default {
               _this.$store.state.user.stuName = _this.uname;
               _this.$store.state.user.stuID = res.data;
               _this.$store.commit("set_name", _this.uname);
+              _this.$store.commit("set_class", _this.selectClass);
+
               _this.$router.push('/');
             } else {
               _this.loginError = 1;

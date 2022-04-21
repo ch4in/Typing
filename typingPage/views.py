@@ -1,6 +1,7 @@
 from django.shortcuts import render
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, StreamingHttpResponse
 from typingPage.models import SchoolClass,User, test, article, testResult, practiceResult,task,classwork
+from django.utils.encoding import escape_uri_path
 from django.utils import timezone
 import json
 import decimal
@@ -158,6 +159,8 @@ def check_entryCode(request):
     return HttpResponse(json.dumps({'res': res}), content_type="application/json")
 
 
+# 作业提交
+
 def get_task(request):
     UID = User.objects.get(uid=request.GET['ID'])
     scid = UID.SchoolClass.id
@@ -219,11 +222,21 @@ def upload_classwork(request):
 
 def download_classwork(request):
     if request.method == "POST":
-        fPath = classwork.objects.filter(task=request.POST['taskID'],UID=request.POST['stuID'])[0].filePath
-        f = open(fPath, 'rb')
-        res = FileResponse(f)
-        res['Content-Type']='application/octet-stream'
-        res['filename'] = os.path.split(fPath)[1]
-        res['Content-Disposition']='attachment;filename="{0}"'.format(res['filename'])
-        return res
+
+        def down_chunk_file_manager(file_path, chuck_size=1024):
+            with open(file_path, "rb") as file:
+                while True:
+                    chuck_stream = file.read(chuck_size)
+                    if chuck_stream:
+                        yield chuck_stream
+                    else:
+                        break
+
+        file_path = classwork.objects.filter(task=request.POST['taskID'],UID=request.POST['stuID'])[0].filePath
+        file_name = os.path.basename(file_path)
+        response = StreamingHttpResponse(down_chunk_file_manager(file_path))
+        response['Content-Type'] = 'application/octet-stream'
+        response['Content-Disposition'] = 'attachment;filename="{0}"'.format(escape_uri_path(file_name))
+        # [print(k, v) for k,v in response.items()]
+        return response
 

@@ -45,7 +45,8 @@ class testAdmin(admin.ModelAdmin):
     list_filter = ("school",)
 
 
-class testResultAdmin(admin.ModelAdmin):
+class testResultAdmin(ImportExportModelAdmin):
+    resource_class = resource.TestResultResource
     list_display = ("testID","学生姓名", 'speed',
                     'correctRate', 'score')
     fields = ("testID", 'UID', 'speed', 'correctRate', 'score')
