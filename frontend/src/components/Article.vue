@@ -281,8 +281,12 @@ export default {
       } else {
         this.correctRate = 100
       }
-      // 计算分数
-      this.score = (this.correctRate * this.speed) / 100
+      // 计算分数，错误率<90% 分数/2
+      if(this.correctRate >= 90){
+        this.score = (this.correctRate * this.speed) / 100
+      } else{
+        this.score = (this.correctRate * this.speed) / 200
+      }
       this.isDialogVisible = true
     }
   },

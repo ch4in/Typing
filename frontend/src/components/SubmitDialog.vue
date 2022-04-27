@@ -47,46 +47,48 @@ export default {
     // 打开dialog时直接提交成绩
     submit() {
       var params;
-      if (this.$store.state.isPractice == true) {
-        //练习数据
-        params = new URLSearchParams({
-          title: this.$store.state.article.title,
-          school: this.$store.state.user.school,
-          stuClass: this.$store.state.user.stuClass,
-          stuName: this.$store.state.user.stuName,
-          speed: this.testInfo.speed,
-          correctRate: this.testInfo.correctRate,
-          score: this.testInfo.score,
-        });
-      } else {
-        params = new URLSearchParams({
-          testID: this.$store.state.testInfo.testID,
-          stuID: this.$store.state.user.stuID,
-          speed: this.testInfo.speed,
-          correctRate: this.testInfo.correctRate,
-          score: this.testInfo.score,
-        });
-      }
+      if (this.testInfo.score != 0) {
+        if (this.$store.state.isPractice == true) {
+          //练习数据
+          params = new URLSearchParams({
+            title: this.$store.state.article.title,
+            school: this.$store.state.user.school,
+            stuClass: this.$store.state.user.stuClass,
+            stuName: this.$store.state.user.stuName,
+            speed: this.testInfo.speed,
+            correctRate: this.testInfo.correctRate,
+            score: this.testInfo.score,
+          });
+        } else {
+          params = new URLSearchParams({
+            testID: this.$store.state.testInfo.testID,
+            stuID: this.$store.state.user.stuID,
+            speed: this.testInfo.speed,
+            correctRate: this.testInfo.correctRate,
+            score: this.testInfo.score,
+          });
+        }
 
-      axios({
-        url: "/post_testResult/",
-        method: "post",
-        data: params,
-        responseType: "text",
-      })
-        .then(function (res) {
-          // console.log(res);
+        axios({
+          url: "/post_testResult/",
+          method: "post",
+          data: params,
+          responseType: "text",
         })
-        .catch(function (err) {
-          console.log('error');
-        });
+          .then(function (res) {
+            // console.log(res);
+          })
+          .catch(function (err) {
+            console.log("error");
+          });
+      }
     },
-    handleBack(){
+    handleBack() {
       if (this.$store.state.isPractice) {
-            this.$router.push("articleList");
-          } else {
-            this.$router.push("testList");
-          }
+        this.$router.push("articleList");
+      } else {
+        this.$router.push("testList");
+      }
     },
   },
 };
