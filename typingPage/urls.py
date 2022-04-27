@@ -12,5 +12,6 @@ urlpatterns = [
     path('get_task/', views.get_task, name='get_task'),
     path('upload_classwork/', views.upload_classwork, name='upload_classwork'),
     path('download_classwork/', views.download_classwork, name='download_classwork'),
-
+    path('nav_download/', views.nav_download, name='nav_download'),
+    
 ]

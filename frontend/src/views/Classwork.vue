@@ -2,13 +2,32 @@
   <div>
     <el-container>
       <el-header style="margin: 20px 0">
-        <el-page-header
-          @back="() => this.$router.push('/')"
-          content="课堂任务提交"
-        ></el-page-header>
+        <el-row type="flex" justify="space-between" align="middle">
+          <el-col :span="12">
+            <el-page-header
+              @back="() => this.$router.push('/')"
+              content="课堂任务提交"
+            ></el-page-header>
+          </el-col>
+          <el-col :span="12">
+            <div style="text-align: right;"> 
+            <span style="font-size: 14px"
+              >欢迎你，{{ this.$store.state.user.school }} -
+              {{ this.$store.state.user.stuClass }} -
+              {{ this.$store.state.user.stuName }}</span
+            >
+            <el-button type="text" style="margin-left: 10px" @click="logoutFn"
+              >退出</el-button
+            >
+            </div>
+          </el-col>
+        </el-row>
         <el-divider></el-divider>
       </el-header>
       <el-main style="width: 95%; margin: auto">
+        <el-row>
+          <el-col> </el-col>
+        </el-row>
         <el-row>
           <el-col :span="12">
             <el-row>
@@ -172,16 +191,17 @@ export default {
         responseType: "blob",
       })
         .then(function (response) {
-          let blob = new Blob([response.data])
-          let fileNameEncode = response.headers['content-disposition'].split("filename=")[1];
+          let blob = new Blob([response.data]);
+          let fileNameEncode =
+            response.headers["content-disposition"].split("filename=")[1];
           // 解码
-          let fileName = decodeURIComponent(fileNameEncode)
+          let fileName = decodeURIComponent(fileNameEncode);
           if (window.navigator.msSaveOrOpenBlob) {
             navigator.msSaveBlob(blob, fileName);
           } else {
             var link = document.createElement("a");
             link.href = window.URL.createObjectURL(blob);
-            link.download = fileName.replace(new RegExp('"', 'g'), '');
+            link.download = fileName.replace(new RegExp('"', "g"), "");
             link.click();
             //释放内存
             window.URL.revokeObjectURL(link.href);

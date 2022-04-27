@@ -39,7 +39,8 @@
                 "info": "在课堂上，创作你自己的Scratch作品",
                 "link": "http://school.kada.163.com/",
                 "target": "_blank",
-                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+                "path":"kada",
+                "account": ".xls"
             },
             {
                 "name": "编程猫社区",
@@ -69,8 +70,9 @@
                 "info": "云图书馆",
                 "link": "http://yuntu.wzer.net/",
                 "target": "_blank",
-                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
-                "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+                "path":"云图书馆",
+                "account": ".xls",
+                "tutorial": "操作教程.doc"
             }
         ]
     },
@@ -82,8 +84,8 @@
                 "info": "看视频动画，学禁毒知识",
                 "link": "https://2-class.com/",
                 "target": "_blank",
-                "tutorial": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')",
-                "account": "javascript:alert('这个功能还没做好！o(╥﹏╥)o')"
+                "tutorial": "c:\\nav\\jindu\\tutorial.txt",
+                "account": "c:\\nav\\jindu.txt"
             }
         ]
     }

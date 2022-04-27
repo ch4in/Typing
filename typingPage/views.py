@@ -1,6 +1,6 @@
 from django.shortcuts import render
-from django.http import HttpResponse, FileResponse, StreamingHttpResponse
-from typingPage.models import SchoolClass,User, test, article, testResult, practiceResult,task,classwork
+from django.http import HttpResponse, FileResponse, StreamingHttpResponse, response
+from typingPage.models import SchoolClass, User, test, article, testResult, practiceResult, task, classwork
 from django.utils.encoding import escape_uri_path
 from django.utils import timezone
 import json
@@ -74,7 +74,8 @@ def get_article(request):
 def post_testResult(request):
     if request.POST.get('testID'):
         # 测试结果
-        tr = testResult.objects.filter(testID=int(request.POST['testID']),UID=int(request.POST['stuID']))
+        tr = testResult.objects.filter(testID=int(
+            request.POST['testID']), UID=int(request.POST['stuID']))
         if tr:
             tr = tr[0]
             if float(request.POST['score']) > tr.score:
@@ -94,10 +95,10 @@ def post_testResult(request):
             tr.save()
         return HttpResponse("OK")
     else:
-        pr = practiceResult.objects.filter(articleID = article.objects.select_related().get(title=request.POST['title']), 
-            school=request.POST['school'],
-            stuClass=request.POST['stuClass'],
-            stuName=request.POST['stuName'])
+        pr = practiceResult.objects.filter(articleID=article.objects.select_related().get(title=request.POST['title']),
+                                           school=request.POST['school'],
+                                           stuClass=request.POST['stuClass'],
+                                           stuName=request.POST['stuName'])
         if pr:
             # 更新
             pr = pr[0]
@@ -148,7 +149,7 @@ def get_rankList(request):
             t['correctRate'] = i.correctRate
             t['score'] = i.score
             res.append(t)
-    
+
     return HttpResponse(json.dumps(res, cls=DecimalEncoder), content_type="application/json")
 
 
@@ -164,22 +165,22 @@ def check_entryCode(request):
 def get_task(request):
     UID = User.objects.get(uid=request.GET['ID'])
     scid = UID.SchoolClass.id
-    taskList = task.objects.filter(SchoolClass = scid).order_by('-id')
+    taskList = task.objects.filter(SchoolClass=scid).order_by('-id')
     res = []
-    for (k,v) in enumerate(taskList):
+    for (k, v) in enumerate(taskList):
         # 检查本地文件是否存在
         isUp = 0
-        t = classwork.objects.filter(task=v.id,UID=UID)
+        t = classwork.objects.filter(task=v.id, UID=UID)
         if t:
             if os.path.exists(t[0].filePath):
                 isUp = 1
             else:
                 # classwork存在，但是本地文件已被删除
-                classwork.objects.filter(task=v.id,UID=UID).delete()
+                classwork.objects.filter(task=v.id, UID=UID).delete()
         res.append({
-            'id':v.id,
-            'taskTitle':v.taskTitle,
-            'taskContent':v.taskContent,
+            'id': v.id,
+            'taskTitle': v.taskTitle,
+            'taskContent': v.taskContent,
             'isUploaded': isUp
         })
     return HttpResponse(json.dumps(res, cls=DecimalEncoder), content_type="application/json")
@@ -193,28 +194,31 @@ def upload_classwork(request):
         # print(request.POST['isUploaded'])
         # 删除原有作业
         if request.POST['isUploaded'] != '0':
-            os.remove(classwork.objects.filter(task=request.POST['taskID'],UID=request.POST['stuID'])[0].filePath)
+            os.remove(classwork.objects.filter(
+                task=request.POST['taskID'], UID=request.POST['stuID'])[0].filePath)
         taskID = task.objects.get(id=request.POST['taskID'])
         UID = User.objects.get(uid=request.POST['stuID'])
-        saveDir = taskID.rootDir + os.sep + UID.SchoolClass.school + os.sep + UID.SchoolClass.classNum + os.sep + taskID.taskTitle
+        saveDir = taskID.rootDir + os.sep + UID.SchoolClass.school + \
+            os.sep + UID.SchoolClass.classNum + os.sep + taskID.taskTitle
         if not os.path.exists(saveDir):
             os.makedirs(saveDir)
         fname = UID.stuName + os.path.splitext(myFile.name)[1]
-        filePath = os.path.join(saveDir, fname) # rootDir/学校/班级/任务名/姓名.file
-        
-        f = open(filePath,'wb+')
+        filePath = os.path.join(saveDir, fname)  # rootDir/学校/班级/任务名/姓名.file
+
+        f = open(filePath, 'wb+')
         for chunk in myFile.chunks():
             f.write(chunk)
         f.close()
-        
+
         if request.POST['isUploaded'] != '0':
-            cw = classwork.objects.filter(task=request.POST['taskID'],UID=request.POST['stuID'])[0]
-            cw.filePath=filePath
+            cw = classwork.objects.filter(
+                task=request.POST['taskID'], UID=request.POST['stuID'])[0]
+            cw.filePath = filePath
             cw.save()
             return HttpResponse("OK")
         cw = classwork()
         cw.task = taskID
-        cw.UID = UID 
+        cw.UID = UID
         cw.filePath = filePath
         cw.save()
         return HttpResponse("OK")
@@ -232,11 +236,38 @@ def download_classwork(request):
                     else:
                         break
 
-        file_path = classwork.objects.filter(task=request.POST['taskID'],UID=request.POST['stuID'])[0].filePath
+        file_path = classwork.objects.filter(
+            task=request.POST['taskID'], UID=request.POST['stuID'])[0].filePath
         file_name = os.path.basename(file_path)
         response = StreamingHttpResponse(down_chunk_file_manager(file_path))
         response['Content-Type'] = 'application/octet-stream'
-        response['Content-Disposition'] = 'attachment;filename="{0}"'.format(escape_uri_path(file_name))
+        response['Content-Disposition'] = 'attachment;filename="{0}"'.format(
+            escape_uri_path(file_name))
         # [print(k, v) for k,v in response.items()]
         return response
 
+# 导航页的下载
+def nav_download(request):
+    if request.method == "POST":
+        def down_chunk_file_manager(file_path, chuck_size=1024):
+            with open(file_path, "rb") as file:
+                while True:
+                    chuck_stream = file.read(chuck_size)
+                    if chuck_stream:
+                        yield chuck_stream
+                    else:
+                        break
+        if request.POST['type'] == "tutorial":
+            file_path = "C:\\nav\\" + request.POST['path'] + os.path.sep + request.POST['ext']
+        else:
+            file_path = "C:\\nav\\" + request.POST['path'] + os.path.sep + User.objects.get(uid=request.POST['stuID']).SchoolClass.classNum + request.POST['ext']
+        print(file_path)
+        
+        if os.path.exists(file_path):
+            file_name = os.path.basename(file_path)
+            response = StreamingHttpResponse(down_chunk_file_manager(file_path))
+            response['Content-Type'] = 'application/octet-stream'
+            response['Content-Disposition'] = 'attachment;filename="{0}"'.format(
+                escape_uri_path(request.POST['path'] + ' ' +file_name))
+            return response
+        return HttpResponse("NO")
