@@ -37,12 +37,12 @@ class practiceResultAdmin(admin.ModelAdmin):
 
 
 class testAdmin(admin.ModelAdmin):
-    list_display = ('testID', "school", 'classInfo',
+    list_display = ("school", 'classInfo',
                     'articleID', 'testTotalTime', 'entryCode', 'isVisible')
     fields = ('school', 'classInfo', 'articleID',
               'testTotalTime', 'entryCode', 'isVisible')
     search_fields = ("school", 'classInfo',)
-    list_filter = ("school",)
+    list_filter = ("school",'classInfo',)
 
 
 class testResultAdmin(ImportExportModelAdmin):

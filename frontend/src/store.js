@@ -18,7 +18,7 @@ export default new Vuex.Store({
     },
     testInfo:{
       testID: '',
-      totalTestTime: 5, //练习时长、总测试时长
+      totalTestTime: 1, //练习时长、总测试时长
     },
     isPractice: false,
   },

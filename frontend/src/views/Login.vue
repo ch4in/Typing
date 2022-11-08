@@ -110,7 +110,7 @@ export default {
               _this.$store.commit("set_name", _this.uname);
               _this.$store.commit("set_class", _this.selectClass);
 
-              _this.$router.push('/');
+              _this.$router.go(-1);
             } else {
               _this.loginError = 1;
             }

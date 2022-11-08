@@ -2,7 +2,7 @@
 
 > django admin:admin
 
-## Typing 
+## Typing
 ### TODO:
 文章列表显示文章总字数
 是否可暂停
@@ -11,7 +11,7 @@
 标点符号提示
 文章tag
 如果有文章名一样的文章？
-练习 测试列表 同一页面
+练习 测试列表 同一页面（只显示该班级的测试列表？）
 
 icon打包后不显示
 
@@ -30,7 +30,7 @@ Ranklist，名字中文显示，表格居中显示
 练习可暂停，测试不可暂停
 时间到，最后错的不减正确率
 练习排行中毕业届显示届数；优化admin显示、搜索
-错误率<90% 分数/2，0分不上榜
+80%<=错误率<90% 分数/2，<80%直接得0分，0分不上榜
 
 ---
 学生登录：学校、姓名
@@ -59,15 +59,27 @@ markdown任务单
 ---
 
 
-## Portal
+## Portal 学习导航
 学生：
 温州教育影院 http://tv.wzer.net/index
 CCTV央视网——纪录片 http://jishi.cctv.com/
 教师：
 办公工具导航
 
-使用教程转至md
-
 ---
 
 ## 课堂签到
+
+            {
+                "name": "ZType",
+                "info": "打字游戏 - Type to Shoot",
+                "link": "https://zty.pe/",
+                "target": "_blank"
+            }
+            
+            {
+                "name": "编程猫社区",
+                "info": "源码编辑器",
+                "link": "https://shequ.codemao.cn/",
+                "target": "_blank"
+            },

@@ -3,33 +3,42 @@
     <el-container>
       <el-header>
         <el-row>
-          <img src="@/assets/portal.png" style="width: 44px" />
-          <div class="loginInfo">
-            <div v-if="this.$store.state.user.stuName == ''">
-              <el-button
-                type=""
-                round
-                size="medium"
-                icon="el-icon-user-solid"
-                @click="
-                  () => {
-                    this.$router.push('login');
-                  }
-                "
-                >登录</el-button
-              >
+          <el-col :span="12" style="height: 48px; text-align: right"
+            ><img src="@/assets/portal.png" style="width: 48px" />
+          </el-col>
+          <el-col :span="12" style="text-align: left; font-size: 32px">学习平台</el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="24">
+            <div class="loginInfo">
+              <div v-if="this.$store.state.user.stuName == ''">
+                <el-button
+                  type="primary" plain
+                  size="mini"
+                  icon="el-icon-user-solid"
+                  @click="
+                    () => {
+                      this.$router.push('login');
+                    }
+                  "
+                  >登录</el-button
+                >
+              </div>
+              <div v-else>
+                <span style="font-size: 14px"
+                  >欢迎你，{{ this.$store.state.user.school }} -
+                  {{ this.$store.state.user.stuClass }} -
+                  {{ this.$store.state.user.stuName }}</span
+                >
+                <el-button
+                  type="text"
+                  style="margin-left: 10px"
+                  @click="logoutFn"
+                  >退出</el-button
+                >
+              </div>
             </div>
-            <div v-else>
-              <span style="font-size: 14px"
-                >欢迎你，{{ this.$store.state.user.school }} -
-                {{ this.$store.state.user.stuClass }} -
-                {{ this.$store.state.user.stuName }}</span
-              >
-              <el-button type="text" style="margin-left: 10px" @click="logoutFn"
-                >退出</el-button
-              >
-            </div>
-          </div>
+          </el-col>
         </el-row>
       </el-header>
 
@@ -159,7 +168,7 @@ export default {
     },
   },
   created() {
-    document.title = "Portal - 导航";
+    document.title = "学习平台";
   },
 };
 </script>

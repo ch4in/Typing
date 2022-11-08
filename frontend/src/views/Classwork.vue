@@ -1,12 +1,12 @@
 <template>
   <div>
     <el-container>
-      <el-header style="margin: 20px 0">
+      <el-header style="margin: 10px 0">
         <el-row type="flex" justify="space-between" align="middle">
           <el-col :span="12">
             <el-page-header
               @back="() => this.$router.push('/')"
-              content="课堂任务提交"
+              content="课堂作品提交"
             ></el-page-header>
           </el-col>
           <el-col :span="12">
@@ -16,9 +16,7 @@
               {{ this.$store.state.user.stuClass }} -
               {{ this.$store.state.user.stuName }}</span
             >
-            <el-button type="text" style="margin-left: 10px" @click="logoutFn"
-              >退出</el-button
-            >
+           
             </div>
           </el-col>
         </el-row>
@@ -236,7 +234,7 @@ export default {
       });
   },
   created() {
-    document.title = "作业提交";
+    document.title = "课堂作品提交";
   },
 };
 </script>

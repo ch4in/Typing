@@ -13,15 +13,9 @@
         "title": "打字 Typing",
         "content": [
             {
-                "name": "Typing打字测试平台",
+                "name": "Typing打字平台",
                 "info": "打字练习与测试",
                 "link": "#/typing"
-            },
-            {
-                "name": "ZType",
-                "info": "打字游戏 - Type to Shoot",
-                "link": "https://zty.pe/",
-                "target": "_blank"
             }
         ]
     },
@@ -29,24 +23,12 @@
         "title": "编程 Coding",
         "content": [
             {
-                "name": "网易卡搭社区",
-                "info": "分享有趣的Scratch编程作品",
-                "link": "https://kada.163.com/home.htm",
-                "target": "_blank"
-            },
-            {
-                "name": "卡搭校园",
-                "info": "在课堂上，创作你自己的Scratch作品",
-                "link": "http://school.kada.163.com/",
+                "name": "扣叮校园",
+                "info": "创造自己的编程作品",
+                "link": "https://coding.qq.com/campus/",
                 "target": "_blank",
-                "path":"kada",
+                "path": "coding",
                 "account": ".xls"
-            },
-            {
-                "name": "编程猫社区",
-                "info": "源码编辑器",
-                "link": "https://shequ.codemao.cn/",
-                "target": "_blank"
             },
             {
                 "name": "Blockly Games",
@@ -70,22 +52,44 @@
                 "info": "云图书馆",
                 "link": "http://yuntu.wzer.net/",
                 "target": "_blank",
-                "path":"云图书馆",
+                "path": "云图书馆",
                 "account": ".xls",
                 "tutorial": "操作教程.doc"
             }
         ]
     },
     {
-        "title": "在线学习 E-Learning",
+        "title": "趣学 E-Learning",
         "content": [
             {
                 "name": "青骄第二课堂",
                 "info": "看视频动画，学禁毒知识",
                 "link": "https://2-class.com/",
-                "target": "_blank",
-                "tutorial": "c:\\nav\\jindu\\tutorial.txt",
-                "account": "c:\\nav\\jindu.txt"
+                "target": "_blank"
+            },
+            {
+                "name": "译学馆",
+                "info": "知识无疆界",
+                "link": "https://www.yxgapp.com/",
+                "target": "_blank"
+            },
+            {
+                "name": "全历史",
+                "info": "用不一样的方式了解历史",
+                "link": "https://www.allhistory.com/",
+                "target": "_blank"
+            },
+            {
+                "name": "AirPano环游世界",
+                "info": "全球360°虚拟游览",
+                "link": "https://airpano.org.cn/",
+                "target": "_blank"
+            },
+            {
+                "name": "中国色",
+                "info": "中国传统颜色",
+                "link": "http://zhongguose.com/",
+                "target": "_blank"
             }
         ]
     }

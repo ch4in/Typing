@@ -47,7 +47,7 @@ export default {
     // 打开dialog时直接提交成绩
     submit() {
       var params;
-      if (this.testInfo.score != 0) {
+      if (this.testInfo.score != 0) { //0分不上榜
         if (this.$store.state.isPractice == true) {
           //练习数据
           params = new URLSearchParams({

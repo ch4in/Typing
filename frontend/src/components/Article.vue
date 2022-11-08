@@ -24,12 +24,12 @@
         v-model="inputList[i]"
         class="ipt"
         @focus="focus_line(i)"
-        @keyup.delete.native="key_delete"
         @keyup.enter.native="key_enter"
         @paste.native.capture.prevent="false"
         :disabled="isDisabled[i]"
+        :maxlength="lineList[i].length"
       ></el-input>
-  <!--  -->
+  <!-- @keyup.delete.native="key_delete" -->
     </div>
     <SubmitDialog
       :visible="isDialogVisible"
@@ -281,11 +281,13 @@ export default {
       } else {
         this.correctRate = 100
       }
-      // 计算分数，错误率<90% 分数/2
+      // 根据错误率计算分数
       if(this.correctRate >= 90){
         this.score = (this.correctRate * this.speed) / 100
-      } else{
+      } else if(this.correctRate >= 80){
         this.score = (this.correctRate * this.speed) / 200
+      } else{
+        this.score = 0
       }
       this.isDialogVisible = true
     }
