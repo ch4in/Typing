@@ -3,9 +3,12 @@
         "title": "常用",
         "content": [
             {
-                "name": "作业提交",
-                "info": "课堂作业提交",
-                "link": "#/classwork"
+                "name": "信息科技学习平台",
+                "info": "主题学习、作品提交、在线交流",
+                "link": "https://xxkj.zjer.cn/",
+                "target": "_blank",
+                "code": "1"
+
             }
         ]
     },
@@ -14,7 +17,7 @@
         "content": [
             {
                 "name": "Typing打字平台",
-                "info": "打字练习与测试",
+                "info": "打字水平评测",
                 "link": "#/typing"
             }
         ]
@@ -23,17 +26,17 @@
         "title": "编程 Coding",
         "content": [
             {
-                "name": "扣叮校园",
-                "info": "创造自己的编程作品",
+                "name": "腾讯扣叮校园",
+                "info": "编程创作",
                 "link": "https://coding.qq.com/campus/",
                 "target": "_blank",
                 "path": "coding",
-                "account": ".xls"
+                "account": ".xlsx"
             },
             {
                 "name": "Blockly Games",
                 "info": "为未来的程序员所设计的游戏",
-                "link": "http://www.kidscode.cn/blockly_games/zh-hans/index.html",
+                "link": "http://blockly.kidscode.cn/zh-hans/index.html",
                 "target": "_blank"
             },
             {
@@ -68,12 +71,6 @@
                 "target": "_blank"
             },
             {
-                "name": "译学馆",
-                "info": "知识无疆界",
-                "link": "https://www.yxgapp.com/",
-                "target": "_blank"
-            },
-            {
                 "name": "全历史",
                 "info": "用不一样的方式了解历史",
                 "link": "https://www.allhistory.com/",
@@ -89,6 +86,12 @@
                 "name": "中国色",
                 "info": "中国传统颜色",
                 "link": "http://zhongguose.com/",
+                "target": "_blank"
+            },
+            {
+                "name": "CompuMuseum",
+                "info": "网页中的电脑博物馆",
+                "link": "http://www.compumuseum.com/",
                 "target": "_blank"
             }
         ]

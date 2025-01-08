@@ -235,8 +235,8 @@ export default {
   },
   created() {
     document.title = "课堂作品提交";
-  },
-};
+  }
+}
 </script>
 
 <style>

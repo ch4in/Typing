@@ -146,3 +146,12 @@ class classwork(models.Model):
     class Meta:
         verbose_name = '08 - 课堂作业'
         verbose_name_plural = verbose_name
+
+class classCode(models.Model):
+    id = models.AutoField('班级码编号', primary_key=True)
+    SchoolClass = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='schoolclass_code', verbose_name='学校班级')
+    code = models.CharField('班级码', default='', max_length=10)
+
+    class Meta:
+        verbose_name = '09 - 班级码'
+        verbose_name_plural = verbose_name

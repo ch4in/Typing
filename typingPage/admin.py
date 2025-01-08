@@ -76,7 +76,15 @@ class classworkAdmin(admin.ModelAdmin):
     list_filter = ()
     list_per_page = 50
     autocomplete_fields = ["UID","task"]
-    
+
+class classCodeAdmin(admin.ModelAdmin):
+    list_display = ('SchoolClass','code')
+    fields = ('SchoolClass','code')
+    search_fields = ("SchoolClass","code")
+    list_filter = ()
+    list_per_page = 50
+    autocomplete_fields = ["SchoolClass"]
+
 
 admin.site.register(models.SchoolClass, SchoolClassAdmin)
 admin.site.register(models.User, UserAdmin)
@@ -86,3 +94,4 @@ admin.site.register(models.test, testAdmin)
 admin.site.register(models.testResult, testResultAdmin)
 admin.site.register(models.task, taskAdmin)
 admin.site.register(models.classwork, classworkAdmin)
+admin.site.register(models.classCode, classCodeAdmin)

@@ -6,14 +6,17 @@
           <el-col :span="12" style="height: 48px; text-align: right"
             ><img src="@/assets/portal.png" style="width: 48px" />
           </el-col>
-          <el-col :span="12" style="text-align: left; font-size: 32px">学习平台</el-col>
+          <el-col :span="12" style="text-align: left; font-size: 32px"
+            >学习导航</el-col
+          >
         </el-row>
         <el-row>
           <el-col :span="24">
             <div class="loginInfo">
               <div v-if="this.$store.state.user.stuName == ''">
                 <el-button
-                  type="primary" plain
+                  type="primary"
+                  plain
                   size="mini"
                   icon="el-icon-user-solid"
                   @click="
@@ -97,6 +100,16 @@
                   >账号密码</el-button
                 >
               </el-col>
+              <el-col :span="c.tutorial && c.account ? 12 : 24">
+                <el-button
+                  v-if="c.code"
+                  type="primary"
+                  plain
+                  size="mini"
+                  @click="handleClick('classCode', '', '')"
+                  >点击复制<b>班级码</b></el-button
+                >
+              </el-col>
             </el-row>
           </el-col>
         </el-row>
@@ -130,29 +143,68 @@ export default {
             ext: f,
             stuID: this.$store.state.user.stuID,
           }),
-          responseType: "blob",
         })
           .then(function (response) {
-            // console.log(response.data);
-            if (response.data.size == 2) {
-              _this.$notify.error({
-                title: "错误",
-                message: "暂时还没有对应文件！",
-              });
+            // console.log(t);
+            if (t == "classCode") {
+              // 检查 navigator.clipboard 是否可用
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                // 将班级码复制到剪贴板
+                navigator.clipboard
+                  .writeText(response.data.res)
+                  .then(() => {
+                    _this.$notify.success({
+                      title: "成功",
+                      message: "班级码:"+response.data.res+"，已复制到剪贴板！",
+                      position: "top-left",
+                    });
+                  })
+                  .catch((err) => {
+                    console.error("无法复制到剪贴板", err);
+                    _this.$notify.error({
+                      title: "错误",
+                      message: "无法复制班级码到剪贴板！",
+                    });
+                  });
+              } else {
+                const textArea = document.createElement("textarea");
+                textArea.value = response.data.res;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                  document.execCommand("copy");
+                  _this.$notify.success({
+                    title: "成功",
+                    message: "班级码:"+response.data.res+"，已复制到剪贴板！",
+                    position: "top-left",
+                  });
+                } catch (err) {
+                  console.error("无法复制到剪贴板", err);
+                }
+                document.body.removeChild(textArea);
+              }
               return;
             } else {
-              let blob = new Blob([response.data]);
-              let fileNameEncode =
-                response.headers["content-disposition"].split("filename=")[1];
-              let fileName = decodeURIComponent(fileNameEncode); // 解码
-              if (window.navigator.msSaveOrOpenBlob) {
-                navigator.msSaveBlob(blob, fileName);
+              if (response.data.size == 2) {
+                _this.$notify.error({
+                  title: "错误",
+                  message: "暂时还没有对应文件！",
+                });
+                return;
               } else {
-                var link = document.createElement("a");
-                link.href = window.URL.createObjectURL(blob);
-                link.download = fileName.replace(new RegExp('"', "g"), "");
-                link.click();
-                window.URL.revokeObjectURL(link.href); //释放内存
+                let blob = new Blob([response.data]);
+                let fileNameEncode =
+                  response.headers["content-disposition"].split("filename=")[1];
+                let fileName = decodeURIComponent(fileNameEncode); // 解码
+                if (window.navigator.msSaveOrOpenBlob) {
+                  navigator.msSaveBlob(blob, fileName);
+                } else {
+                  var link = document.createElement("a");
+                  link.href = window.URL.createObjectURL(blob);
+                  link.download = fileName.replace(new RegExp('"', "g"), "");
+                  link.click();
+                  window.URL.revokeObjectURL(link.href); //释放内存
+                }
               }
             }
           })
@@ -168,7 +220,7 @@ export default {
     },
   },
   created() {
-    document.title = "学习平台";
+    document.title = "学习导航";
   },
 };
 </script>

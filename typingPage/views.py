@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.http import HttpResponse, FileResponse, StreamingHttpResponse, response
-from typingPage.models import SchoolClass, User, test, article, testResult, practiceResult, task, classwork
+from typingPage.models import SchoolClass, User, test, article, testResult, practiceResult, task, classwork,classCode
 from django.utils.encoding import escape_uri_path
 from django.utils import timezone
 import json
 import decimal
 import os
+from django.http import JsonResponse
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -259,9 +260,17 @@ def nav_download(request):
                         break
         if request.POST['type'] == "tutorial":
             file_path = "C:\\nav\\" + request.POST['path'] + os.path.sep + request.POST['ext']
-        else:
+        elif request.POST['type'] =="account":
             file_path = "C:\\nav\\" + request.POST['path'] + os.path.sep + User.objects.get(uid=request.POST['stuID']).SchoolClass.classNum + request.POST['ext']
-        print(file_path)
+        elif request.POST['type'] == "classCode":
+            # 获取当前学生所在班级的班级码
+            user = User.objects.get(uid=request.POST['stuID'])
+            class_code = classCode.objects.filter(SchoolClass=user.SchoolClass).first()
+            if class_code:
+                return JsonResponse({'res': class_code.code})
+            else:
+                return JsonResponse({'res': '未找到班级码'}, status=404)
+        # print(file_path)
         
         if os.path.exists(file_path):
             file_name = os.path.basename(file_path)
