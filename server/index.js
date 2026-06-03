@@ -286,6 +286,19 @@ async function start() {
     next();
   }
 
+  // 可选认证中间件：有 token 时解析，没有也放行
+  function optionalAuth(req, res, next) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      const session = db.prepare('SELECT * FROM login_sessions WHERE token = ?').get(token);
+      if (session) {
+        req.studentId = session.student_id;
+        req.session = session;
+      }
+    }
+    next();
+  }
+
   app.get('/api/user', authMiddleware, (req, res) => {
     const student = db.prepare(`
       SELECT s.*, sc.name as school_name, c.name as class_name 
@@ -304,13 +317,24 @@ async function start() {
     res.json(cards);
   });
 
-  app.get('/api/articles', (req, res) => {
+  app.get('/api/articles', optionalAuth, (req, res) => {
     const { type } = req.query;
     let articles;
     if (type) {
       articles = db.prepare('SELECT * FROM articles WHERE enabled = 1 AND type = ? ORDER BY id').all(type);
     } else {
       articles = db.prepare('SELECT * FROM articles WHERE enabled = 1 ORDER BY id').all();
+    }
+    // 如果已登录，附加该学生每篇文章的练习成绩
+    if (req.studentId) {
+      articles = articles.map(a => {
+        const result = db.prepare(`
+          SELECT wpm, accuracy FROM practice_results 
+          WHERE article_id = ? AND student_id = ? 
+          ORDER BY id DESC LIMIT 1
+        `).get(a.id, req.studentId);
+        return { ...a, my_wpm: result ? result.wpm : null, my_accuracy: result ? result.accuracy : null };
+      });
     }
     saveDB(sqlDb);
     res.json(articles);
@@ -326,12 +350,33 @@ async function start() {
   app.get('/api/tests/:classId', authMiddleware, (req, res) => {
     const tests = db.prepare(`
       SELECT t.*, a.title as article_title, a.content as article_content, a.type as article_type,
-        (SELECT COUNT(*) FROM test_results tr WHERE tr.test_id = t.id AND tr.student_id = ? AND tr.completed = 1) as completed
+        (SELECT COUNT(*) FROM test_results tr WHERE tr.test_id = t.id AND tr.student_id = ? AND tr.completed = 1) as completed,
+        (SELECT tr2.wpm FROM test_results tr2 WHERE tr2.test_id = t.id AND tr2.student_id = ? AND tr2.completed = 1 ORDER BY tr2.id DESC LIMIT 1) as my_wpm,
+        (SELECT tr2.accuracy FROM test_results tr2 WHERE tr2.test_id = t.id AND tr2.student_id = ? AND tr2.completed = 1 ORDER BY tr2.id DESC LIMIT 1) as my_accuracy,
+        (SELECT COUNT(*) FROM test_results tr3 WHERE tr3.test_id = t.id AND tr3.completed = 1) as total_completed
       FROM tests t 
       JOIN articles a ON t.article_id = a.id 
       WHERE t.class_id = ? AND t.enabled = 1
       ORDER BY t.id DESC
-    `).all(req.studentId, Number(req.params.classId));
+    `).all(req.studentId, req.studentId, req.studentId, Number(req.params.classId));
+
+    // 计算每个已完成测试中该学生的排名
+    tests.forEach(t => {
+      if (t.completed) {
+        const ranking = db.prepare(`
+          SELECT student_id, MAX(wpm) as wpm, MAX(accuracy) as accuracy, MIN(duration_seconds) as duration_seconds, MAX(created_at) as created_at
+          FROM test_results 
+          WHERE test_id = ? AND completed = 1
+          GROUP BY student_id
+          ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+        `).all(t.id);
+        const idx = ranking.findIndex(r => r.student_id === req.studentId);
+        t.my_rank = idx >= 0 ? idx + 1 : null;
+      } else {
+        t.my_rank = null;
+      }
+    });
+
     saveDB(sqlDb);
     res.json(tests);
   });
@@ -350,27 +395,58 @@ async function start() {
 
   app.post('/api/tests/submit', authMiddleware, (req, res) => {
     const { testId, wpm, accuracy, correctChars, totalChars, durationSeconds, completed } = req.body;
+    // 正确率低于60%不记录
+    if (accuracy < 60) {
+      saveDB(sqlDb);
+      return res.json({ success: true, ignored: true, reason: '正确率低于60%，不记录成绩' });
+    }
     const student = db.prepare('SELECT s.*, c.name as class_name FROM students s JOIN classes c ON s.class_id = c.id WHERE s.id = ?').get(req.studentId);
 
-    db.prepare(`
-      INSERT INTO test_results (test_id, student_id, student_name, class_name, wpm, accuracy, correct_chars, total_chars, duration_seconds, completed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(Number(testId), req.studentId, student.name, student.class_name, wpm, accuracy, correctChars, totalChars, durationSeconds, completed ? 1 : 0);
+    // 检查该学生在此测试中是否已有记录
+    const existing = db.prepare('SELECT id, wpm FROM test_results WHERE test_id = ? AND student_id = ?').get(Number(testId), req.studentId);
+    
+    if (existing) {
+      // 只有新成绩更好时才更新
+      if (wpm > existing.wpm) {
+        db.prepare(`
+          UPDATE test_results SET wpm = ?, accuracy = ?, correct_chars = ?, total_chars = ?, duration_seconds = ?, completed = ?, created_at = datetime('now','localtime')
+          WHERE id = ?
+        `).run(wpm, accuracy, correctChars, totalChars, durationSeconds, completed ? 1 : 0, existing.id);
+      }
+    } else {
+      db.prepare(`
+        INSERT INTO test_results (test_id, student_id, student_name, class_name, wpm, accuracy, correct_chars, total_chars, duration_seconds, completed)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(Number(testId), req.studentId, student.name, student.class_name, wpm, accuracy, correctChars, totalChars, durationSeconds, completed ? 1 : 0);
+    }
     saveDB(sqlDb);
     res.json({ success: true });
   });
 
   app.get('/api/tests/:testId/ranking', (req, res) => {
-    const ranking = db.prepare(`
-      SELECT student_name, class_name, MAX(wpm) as wpm, MAX(accuracy) as accuracy, MAX(correct_chars) as correct_chars, MAX(total_chars) as total_chars
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 50;
+    const offset = (page - 1) * pageSize;
+
+    const totalRow = db.prepare(`
+      SELECT COUNT(DISTINCT student_id) as total
       FROM test_results 
       WHERE test_id = ? AND completed = 1
-      GROUP BY student_id
-      ORDER BY wpm DESC
-      LIMIT 50
-    `).all(Number(req.params.testId));
+    `).get(Number(req.params.testId));
+    const total = totalRow ? totalRow.total : 0;
+
+    const ranking = db.prepare(`
+      SELECT tr.student_name, s.name as school_name, tr.class_name, MAX(tr.wpm) as wpm, MAX(tr.accuracy) as accuracy, MAX(tr.correct_chars) as correct_chars, MAX(tr.total_chars) as total_chars, MIN(tr.duration_seconds) as duration_seconds, MAX(tr.created_at) as created_at
+      FROM test_results tr
+      LEFT JOIN students st ON tr.student_id = st.id
+      LEFT JOIN schools s ON st.school_id = s.id
+      WHERE tr.test_id = ? AND tr.completed = 1
+      GROUP BY tr.student_id
+      ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+      LIMIT ? OFFSET ?
+    `).all(Number(req.params.testId), pageSize, offset);
     saveDB(sqlDb);
-    res.json(ranking);
+    res.json({ data: ranking, total, page, pageSize });
   });
 
   app.get('/api/tests/:testId/my-result', authMiddleware, (req, res) => {
@@ -394,6 +470,11 @@ async function start() {
   // 练习结果提交
   app.post('/api/practice/submit', authMiddleware, (req, res) => {
     const { articleId, wpm, accuracy, correctChars, totalChars, durationSeconds } = req.body;
+    // 正确率低于60%不记录
+    if (accuracy < 60) {
+      saveDB(sqlDb);
+      return res.json({ success: true, ignored: true, reason: '正确率低于60%，不记录成绩' });
+    }
     const student = db.prepare('SELECT s.*, sc.name as school_name, c.name as class_name FROM students s JOIN schools sc ON s.school_id = sc.id JOIN classes c ON s.class_id = c.id WHERE s.id = ?').get(req.studentId);
     db.prepare(`
       INSERT INTO practice_results (article_id, student_id, student_name, school_name, class_name, wpm, accuracy, correct_chars, total_chars, duration_seconds)
@@ -403,18 +484,40 @@ async function start() {
     res.json({ success: true });
   });
 
+  // 练习文章我的结果
+  app.get('/api/articles/:articleId/my-result', authMiddleware, (req, res) => {
+    const result = db.prepare(`
+      SELECT * FROM practice_results 
+      WHERE article_id = ? AND student_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(Number(req.params.articleId), req.studentId);
+    saveDB(sqlDb);
+    res.json(result || null);
+  });
+
   // 练习文章排名
   app.get('/api/articles/:articleId/ranking', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 50;
+    const offset = (page - 1) * pageSize;
+
+    const totalRow = db.prepare(`
+      SELECT COUNT(DISTINCT student_id) as total
+      FROM practice_results 
+      WHERE article_id = ?
+    `).get(Number(req.params.articleId));
+    const total = totalRow ? totalRow.total : 0;
+
     const ranking = db.prepare(`
-      SELECT student_name, school_name, class_name, MAX(wpm) as wpm, MAX(accuracy) as accuracy
+      SELECT student_name, school_name, class_name, MAX(wpm) as wpm, MAX(accuracy) as accuracy, MIN(duration_seconds) as duration_seconds, MAX(created_at) as created_at
       FROM practice_results 
       WHERE article_id = ?
       GROUP BY student_id
-      ORDER BY wpm DESC
-      LIMIT 100
-    `).all(Number(req.params.articleId));
+      ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+      LIMIT ? OFFSET ?
+    `).all(Number(req.params.articleId), pageSize, offset);
     saveDB(sqlDb);
-    res.json(ranking);
+    res.json({ data: ranking, total, page, pageSize });
   });
 
   // ==================== 管理员 API ====================
@@ -430,7 +533,7 @@ async function start() {
   });
 
   function adminMiddleware(req, res, next) {
-    const token = req.headers.authorization?.replace('Bearer ', '');
+    const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
     if (!token || !token.startsWith('admin_')) return res.status(401).json({ error: '请先登录管理员账号' });
     next();
   }
@@ -621,15 +724,92 @@ async function start() {
   });
 
   app.delete('/api/admin/tests/:id', adminMiddleware, (req, res) => {
-    db.prepare('DELETE FROM tests WHERE id = ?').run(Number(req.params.id));
+    const testId = Number(req.params.id);
+    db.prepare('DELETE FROM test_results WHERE test_id = ?').run(testId);
+    db.prepare('DELETE FROM tests WHERE id = ?').run(testId);
     saveDB(sqlDb);
     res.json({ success: true });
   });
 
+  // 批量删除测试（含关联的测试结果）
+  app.post('/api/admin/tests/batch-delete', adminMiddleware, (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的测试ID列表' });
+    }
+    const placeholders = ids.map(() => '?').join(',');
+    db.prepare(`DELETE FROM test_results WHERE test_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM tests WHERE id IN (${placeholders})`).run(...ids);
+    saveDB(sqlDb);
+    res.json({ success: true, deleted: ids.length });
+  });
+
+  // 测试结果汇总（同一学生最佳成绩）
   app.get('/api/admin/tests/:testId/results', adminMiddleware, (req, res) => {
-    const results = db.prepare('SELECT * FROM test_results WHERE test_id = ? ORDER BY wpm DESC').all(Number(req.params.testId));
+    const results = db.prepare(`
+      SELECT student_name, class_name, MAX(wpm) as wpm, MAX(accuracy) as accuracy, MAX(correct_chars) as correct_chars, MAX(total_chars) as total_chars, MIN(duration_seconds) as duration_seconds, MAX(created_at) as created_at, MAX(completed) as completed
+      FROM test_results 
+      WHERE test_id = ?
+      GROUP BY student_id
+      ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+    `).all(Number(req.params.testId));
     saveDB(sqlDb);
     res.json(results);
+  });
+
+  // 测试结果明细（所有记录）
+  app.get('/api/admin/tests/:testId/results/detail', adminMiddleware, (req, res) => {
+    const results = db.prepare(`
+      SELECT * FROM test_results 
+      WHERE test_id = ? 
+      ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+    `).all(Number(req.params.testId));
+    saveDB(sqlDb);
+    res.json(results);
+  });
+
+  // 新增测试结果
+  app.post('/api/admin/tests/:testId/results', adminMiddleware, (req, res) => {
+    const { student_id, student_name, class_name, wpm, accuracy, correct_chars, total_chars, duration_seconds, completed } = req.body;
+    if (!student_id || !student_name) {
+      return res.status(400).json({ error: '学生姓名不能为空' });
+    }
+    db.prepare(`
+      INSERT INTO test_results (test_id, student_id, student_name, class_name, wpm, accuracy, correct_chars, total_chars, duration_seconds, completed)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(Number(req.params.testId), Number(student_id), student_name, class_name || '', Number(wpm) || 0, Number(accuracy) || 0, Number(correct_chars) || 0, Number(total_chars) || 0, Number(duration_seconds) || 0, completed ? 1 : 0);
+    saveDB(sqlDb);
+    res.json({ success: true });
+  });
+
+  // 编辑测试结果
+  app.put('/api/admin/tests/results/:id', adminMiddleware, (req, res) => {
+    const { student_name, class_name, wpm, accuracy, correct_chars, total_chars, duration_seconds, completed } = req.body;
+    db.prepare(`
+      UPDATE test_results SET student_name = ?, class_name = ?, wpm = ?, accuracy = ?, correct_chars = ?, total_chars = ?, duration_seconds = ?, completed = ?
+      WHERE id = ?
+    `).run(student_name, class_name || '', Number(wpm) || 0, Number(accuracy) || 0, Number(correct_chars) || 0, Number(total_chars) || 0, Number(duration_seconds) || 0, completed ? 1 : 0, Number(req.params.id));
+    saveDB(sqlDb);
+    res.json({ success: true });
+  });
+
+  // 删除测试结果
+  app.delete('/api/admin/tests/results/:id', adminMiddleware, (req, res) => {
+    db.prepare('DELETE FROM test_results WHERE id = ?').run(Number(req.params.id));
+    saveDB(sqlDb);
+    res.json({ success: true });
+  });
+
+  // 批量删除练习数据
+  app.post('/api/admin/practices/results/batch-delete', adminMiddleware, (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的练习数据ID列表' });
+    }
+    const placeholders = ids.map(() => '?').join(',');
+    db.prepare(`DELETE FROM practice_results WHERE id IN (${placeholders})`).run(...ids);
+    saveDB(sqlDb);
+    res.json({ success: true, deleted: ids.length });
   });
 
   // 练习文章结果管理 - 全部数据（不分文章）
@@ -637,15 +817,29 @@ async function start() {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 50;
     const offset = (page - 1) * pageSize;
+    const articleId = req.query.articleId ? Number(req.query.articleId) : null;
     
-    const total = db.prepare('SELECT COUNT(*) as count FROM practice_results').get();
-    const results = db.prepare(`
-      SELECT pr.*, a.title as article_title
-      FROM practice_results pr
-      LEFT JOIN articles a ON a.id = pr.article_id
-      ORDER BY pr.created_at DESC
-      LIMIT ? OFFSET ?
-    `).all(pageSize, offset);
+    let total, results;
+    if (articleId) {
+      total = db.prepare('SELECT COUNT(*) as count FROM practice_results WHERE article_id = ?').get(articleId);
+      results = db.prepare(`
+        SELECT pr.*, a.title as article_title
+        FROM practice_results pr
+        LEFT JOIN articles a ON a.id = pr.article_id
+        WHERE pr.article_id = ?
+        ORDER BY pr.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(articleId, pageSize, offset);
+    } else {
+      total = db.prepare('SELECT COUNT(*) as count FROM practice_results').get();
+      results = db.prepare(`
+        SELECT pr.*, a.title as article_title
+        FROM practice_results pr
+        LEFT JOIN articles a ON a.id = pr.article_id
+        ORDER BY pr.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(pageSize, offset);
+    }
     
     saveDB(sqlDb);
     res.json({ data: results, total: total.count, page, pageSize });
@@ -656,14 +850,20 @@ async function start() {
     const results = db.prepare(`
       SELECT * FROM practice_results 
       WHERE article_id = ? 
-      ORDER BY wpm DESC
+      ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
     `).all(Number(req.params.articleId));
     saveDB(sqlDb);
     res.json(results);
   });
 
   app.get('/api/admin/tests/:testId/results/export', adminMiddleware, (req, res) => {
-    const results = db.prepare('SELECT * FROM test_results WHERE test_id = ? ORDER BY wpm DESC').all(Number(req.params.testId));
+    const results = db.prepare(`
+      SELECT student_name, class_name, MAX(wpm) as wpm, MAX(accuracy) as accuracy, MAX(correct_chars) as correct_chars, MAX(total_chars) as total_chars, MIN(duration_seconds) as duration_seconds, MAX(created_at) as created_at, MAX(completed) as completed
+      FROM test_results 
+      WHERE test_id = ?
+      GROUP BY student_id
+      ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+    `).all(Number(req.params.testId));
     // 生成CSV
     const BOM = '\uFEFF';
     let csv = BOM + '排名,学生姓名,班级,速度(字/分),正确率(%),正确字数,总输入字数,用时(秒),完成状态,提交时间\n';
@@ -704,8 +904,8 @@ async function start() {
     res.json({ count });
   });
 
-  app.listen(PORT, () => {
-    console.log(`✅ 服务器运行在 http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ 服务器运行在 http://0.0.0.0:${PORT}`);
   });
 }
 

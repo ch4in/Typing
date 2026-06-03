@@ -1,5 +1,32 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import pinyin from 'pinyin';
+
+// ==================== 工具函数 ====================
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const se = String(d.getSeconds()).padStart(2, '0');
+  return `${y}-${mo}-${day} ${h}:${mi}:${se}`;
+}
+
+// 使用 pinyin 库获取汉字拼音（不带声调）
+function getPinyin(ch) {
+  if (!ch || /^[\x00-\x7F]+$/.test(ch)) return null;
+  const result = pinyin(ch, { style: pinyin.STYLE_NORMAL, heteronym: false });
+  return result && result.length > 0 ? result[0][0] : null;
+}
 
 // ==================== API 工具 ====================
 const API_BASE = '/api';
@@ -76,7 +103,14 @@ function LoginModal({ onClose, onSuccess }) {
   const { login } = useAuth();
 
   useEffect(() => {
-    api('/schools').then(setSchools).catch(() => {});
+    api('/schools').then(data => {
+      setSchools(data);
+      // 默认选择"沙城一小"
+      const defaultSchool = data.find(s => s.name === '沙城一小');
+      if (defaultSchool) {
+        setSchoolId(String(defaultSchool.id));
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -221,6 +255,7 @@ function TypingHome() {
   const [testMyResult, setTestMyResult] = useState(null);
   const [showPracticeRank, setShowPracticeRank] = useState(null);
   const [practiceRanking, setPracticeRanking] = useState([]);
+  const [practiceMyResult, setPracticeMyResult] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -276,9 +311,12 @@ function TypingHome() {
     e.stopPropagation();
     setShowTestRank(t);
     try {
-      const ranking = await api(`/tests/${t.id}/ranking`);
+      const [ranking, myResult] = await Promise.all([
+        api(`/tests/${t.id}/ranking`),
+        api(`/tests/${t.id}/my-result`)
+      ]);
       setTestRanking(ranking);
-      setTestMyResult(null);
+      setTestMyResult(myResult);
     } catch (err) {
       setTestRanking([]);
       setTestMyResult(null);
@@ -289,10 +327,15 @@ function TypingHome() {
     e.stopPropagation();
     setShowPracticeRank(article);
     try {
-      const ranking = await api(`/articles/${article.id}/ranking`);
+      const [ranking, myResult] = await Promise.all([
+        api(`/articles/${article.id}/ranking`),
+        api(`/articles/${article.id}/my-result`)
+      ]);
       setPracticeRanking(ranking);
+      setPracticeMyResult(myResult);
     } catch (err) {
       setPracticeRanking([]);
+      setPracticeMyResult(null);
     }
   };
 
@@ -334,7 +377,6 @@ function TypingHome() {
                 </div>
                 <div className="article-item-actions">
                   <button className="btn btn-secondary btn-small" onClick={(e) => handlePracticeRank(a, e)} title="查看排名">🏆 排名</button>
-                  <span className="article-arrow">▶</span>
                 </div>
               </div>
             ))}
@@ -350,16 +392,19 @@ function TypingHome() {
               <div className="test-info">
                 <h4 title={t.title}>{t.title}</h4>
                 <div className="test-meta">
-                  <span>📄 {t.article_title}</span>
                   <span>⏱ {Math.floor(t.duration / 60)}分{t.duration % 60}秒</span>
                   {t.completed ? (
-                    <span className="test-completed-badge">✅ 已完成</span>
+                    <>
+                      <span className="test-completed-badge">✅ 已完成</span>
+                      <span>⚡ {t.my_wpm} 字/分</span>
+                      <span>🎯 {t.my_accuracy}%</span>
+                      <span>🏆 #{t.my_rank}/{t.total_completed}</span>
+                    </>
                   ) : null}
                 </div>
               </div>
               <div className="test-item-actions">
                 <button className="btn btn-secondary btn-small" onClick={(e) => handleViewRank(t, e)} title="查看排名">🏆 排名</button>
-                <span className="test-arrow">{t.completed ? '🏆' : '▶'}</span>
               </div>
             </div>
           ))}
@@ -397,10 +442,12 @@ function TypingHome() {
         <PracticeRankModal
           article={showPracticeRank}
           ranking={practiceRanking}
-          onClose={() => { setShowPracticeRank(null); setPracticeRanking([]); }}
+          myResult={practiceMyResult}
+          onClose={() => { setShowPracticeRank(null); setPracticeRanking([]); setPracticeMyResult(null); }}
           onStart={() => {
             setShowPracticeRank(null);
             setPracticeRanking([]);
+            setPracticeMyResult(null);
             navigate(`/typing/practice/${showPracticeRank.id}`);
           }}
         />
@@ -462,14 +509,43 @@ function TestCodeModal({ test, onClose, onStart }) {
 
 // ==================== 测试排名弹窗 ====================
 function TestRankModal({ test, ranking, myResult, onClose, onRetry }) {
-  const userRank = ranking.findIndex(r => r.student_name === myResult?.student_name) + 1;
+  const [page, setPage] = React.useState(1);
+  const pageSize = 50;
+  const [allData, setAllData] = React.useState({ data: [], total: 0 });
+
+  // 首次加载或翻页
+  React.useEffect(() => {
+    if (ranking) {
+      // 兼容旧格式（纯数组）和新格式（{data, total}）
+      if (Array.isArray(ranking)) {
+        setAllData({ data: ranking, total: ranking.length });
+      } else if (ranking.data) {
+        setAllData(ranking);
+      }
+    }
+  }, [ranking]);
+
+  const loadPage = async (p) => {
+    setPage(p);
+    try {
+      const r = await api(`/tests/${test.id}/ranking?page=${p}&pageSize=${pageSize}`);
+      setAllData(r);
+    } catch (err) {}
+  };
+
+  const rankingData = allData.data || [];
+  const totalPages = Math.ceil(allData.total / pageSize);
+
+  // 计算当前学生在排名中的位置（注意翻页后可能不在当前页）
+  const userRankIdx = myResult ? rankingData.findIndex(r => r.student_name === myResult.student_name) : -1;
+  const userRank = userRankIdx >= 0 ? (page - 1) * pageSize + userRankIdx + 1 : -1;
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 'min(95vw, 800px)' }} onClick={e => e.stopPropagation()}>
         <h2>🏆 {test.title}</h2>
         <p style={{ color: '#636e72', marginBottom: 12, fontSize: '0.9em' }}>
-          📄 {test.article_title} · ⏱ {Math.floor(test.duration / 60)}分{test.duration % 60}秒
+          📄 {test.article_title} · ⏱ {Math.floor(test.duration / 60)}分{test.duration % 60}秒 · 共 {allData.total} 人
         </p>
         {myResult && (
           <div className="my-result-card" style={{
@@ -493,31 +569,48 @@ function TestRankModal({ test, ranking, myResult, onClose, onRetry }) {
             </div>
           </div>
         )}
-        {ranking.length > 0 ? (
-          <table className="ranking-table">
-            <thead>
-              <tr>
-                <th>排名</th>
-                <th>姓名</th>
-                <th>速度</th>
-                <th>正确率</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranking.slice(0, 20).map((r, i) => (
-                <tr key={i} className={r.student_name === myResult?.student_name ? 'my-rank' : ''}>
-                  <td>
-                    {i < 3 ? (
-                      <span className={`rank-badge rank-${i + 1}`}>{i + 1}</span>
-                    ) : i + 1}
-                  </td>
-                  <td>{r.student_name}</td>
-                  <td>{r.wpm} 字/分</td>
-                  <td>{r.accuracy}%</td>
+        {rankingData.length > 0 ? (
+          <>
+            <table className="ranking-table" style={{ fontSize: '0.85em' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 50 }}>排名</th>
+                  <th>姓名</th>
+                  <th>学校</th>
+                  <th>班级</th>
+                  <th>速度</th>
+                  <th>正确率</th>
+                  <th>用时</th>
+                  <th>完成时间</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rankingData.map((r, i) => (
+                  <tr key={i} className={r.student_name === myResult?.student_name ? 'my-rank' : ''}>
+                    <td>
+                      {((page - 1) * pageSize + i) < 3 ? (
+                        <span className={`rank-badge rank-${(page - 1) * pageSize + i + 1}`}>{(page - 1) * pageSize + i + 1}</span>
+                      ) : (page - 1) * pageSize + i + 1}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.student_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.school_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.class_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.wpm} 字/分</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.accuracy}%</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.duration_seconds != null ? `${Math.floor(r.duration_seconds / 60)}'${r.duration_seconds % 60}"` : '-'}</td>
+                    <td style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>{formatDateTime(r.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                <button className="btn btn-secondary btn-small" disabled={page <= 1} onClick={() => loadPage(page - 1)}>◀ 上一页</button>
+                <span style={{ fontSize: '0.85em', color: '#636e72' }}>第 {page}/{totalPages} 页</span>
+                <button className="btn btn-secondary btn-small" disabled={page >= totalPages} onClick={() => loadPage(page + 1)}>下一页 ▶</button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="empty-state">暂无排名数据</div>
         )}
@@ -531,41 +624,107 @@ function TestRankModal({ test, ranking, myResult, onClose, onRetry }) {
 }
 
 // ==================== 练习排名弹窗 ====================
-function PracticeRankModal({ article, ranking, onClose, onStart }) {
+function PracticeRankModal({ article, ranking, myResult, onClose, onStart }) {
+  const [page, setPage] = React.useState(1);
+  const pageSize = 50;
+  const [allData, setAllData] = React.useState({ data: [], total: 0 });
+
+  React.useEffect(() => {
+    if (ranking) {
+      if (Array.isArray(ranking)) {
+        setAllData({ data: ranking, total: ranking.length });
+      } else if (ranking.data) {
+        setAllData(ranking);
+      }
+    }
+  }, [ranking]);
+
+  const loadPage = async (p) => {
+    setPage(p);
+    try {
+      const r = await api(`/articles/${article.id}/ranking?page=${p}&pageSize=${pageSize}`);
+      setAllData(r);
+    } catch (err) {}
+  };
+
+  const rankingData = allData.data || [];
+  const totalPages = Math.ceil(allData.total / pageSize);
+
+  // 计算当前学生的排名
+  const userRankIdx = myResult ? rankingData.findIndex(r => r.student_name === myResult.student_name) : -1;
+  const userRank = userRankIdx >= 0 ? (page - 1) * pageSize + userRankIdx + 1 : -1;
+
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 'min(95vw, 800px)' }} onClick={e => e.stopPropagation()}>
         <h2>🏆 {article.title}</h2>
         <p style={{ color: '#636e72', marginBottom: 12, fontSize: '0.9em' }}>
-          📝 {article.type === 'chinese' ? '中文' : '英文'} · {article.difficulty === 'easy' ? '简单' : article.difficulty === 'medium' ? '中等' : '困难'} · {article.content.length} 字
+          📝 {article.type === 'chinese' ? '中文' : '英文'} · {article.difficulty === 'easy' ? '简单' : article.difficulty === 'medium' ? '中等' : '困难'} · {article.content.length} 字 · 共 {allData.total} 人
         </p>
-        {ranking.length > 0 ? (
-          <table className="ranking-table">
-            <thead>
-              <tr>
-                <th>排名</th>
-                <th>姓名</th>
-                <th>学校</th>
-                <th>速度</th>
-                <th>正确率</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranking.slice(0, 20).map((r, i) => (
-                <tr key={r.id || i}>
-                  <td>
-                    {i < 3 ? (
-                      <span className={`rank-badge rank-${i + 1}`}>{i + 1}</span>
-                    ) : i + 1}
-                  </td>
-                  <td>{r.student_name}</td>
-                  <td>{r.school_name}</td>
-                  <td>{r.wpm} 字/分</td>
-                  <td>{r.accuracy}%</td>
+        {myResult && (
+          <div className="my-result-card" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: '#fff', borderRadius: 12, padding: '12px 16px',
+            marginBottom: 16, display: 'flex', justifyContent: 'space-around', alignItems: 'center'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>{myResult.wpm}</div>
+              <div style={{ fontSize: '0.8em', opacity: 0.9 }}>速度(字/分)</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>{myResult.accuracy}%</div>
+              <div style={{ fontSize: '0.8em', opacity: 0.9 }}>正确率</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>
+                {userRank > 0 ? `#${userRank}` : '-'}
+              </div>
+              <div style={{ fontSize: '0.8em', opacity: 0.9 }}>排名</div>
+            </div>
+          </div>
+        )}
+        {rankingData.length > 0 ? (
+          <>
+            <table className="ranking-table" style={{ fontSize: '0.85em' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 50 }}>排名</th>
+                  <th>姓名</th>
+                  <th>学校</th>
+                  <th>班级</th>
+                  <th>速度</th>
+                  <th>正确率</th>
+                  <th>用时</th>
+                  <th>完成时间</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rankingData.map((r, i) => (
+                  <tr key={r.id || i} className={r.student_name === myResult?.student_name ? 'my-rank' : ''}>
+                    <td>
+                      {((page - 1) * pageSize + i) < 3 ? (
+                        <span className={`rank-badge rank-${(page - 1) * pageSize + i + 1}`}>{(page - 1) * pageSize + i + 1}</span>
+                      ) : (page - 1) * pageSize + i + 1}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.student_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.school_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.class_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.wpm} 字/分</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.accuracy}%</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.duration_seconds != null ? `${Math.floor(r.duration_seconds / 60)}'${r.duration_seconds % 60}"` : '-'}</td>
+                    <td style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>{formatDateTime(r.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                <button className="btn btn-secondary btn-small" disabled={page <= 1} onClick={() => loadPage(page - 1)}>◀ 上一页</button>
+                <span style={{ fontSize: '0.85em', color: '#636e72' }}>第 {page}/{totalPages} 页</span>
+                <button className="btn btn-secondary btn-small" disabled={page >= totalPages} onClick={() => loadPage(page + 1)}>下一页 ▶</button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="empty-state">暂无练习数据</div>
         )}
@@ -597,6 +756,8 @@ function TypingEditor() {
   const [myResult, setMyResult] = useState(null);
   const [charIndex, setCharIndex] = useState(0);
   const [errors, setErrors] = useState(new Set());
+  const [wrongChars, setWrongChars] = useState({}); // { displayIdx: '用户输入的错误字符' }
+  const [composingText, setComposingText] = useState(''); // IME组合中的拼音预览
   const [focused, setFocused] = useState(false);
 
   const startTimeRef = React.useRef(null);
@@ -653,12 +814,24 @@ function TypingEditor() {
     return () => clearInterval(timer);
   }, [started, finished]);
 
+  // 获取跳过换行符后的有效内容（用于输入比对）
+  const getTypableContent = useCallback((content) => {
+    return content ? content.replace(/\r?\n/g, '') : '';
+  }, []);
+
+  const getTypableLength = useCallback((content) => {
+    return content ? content.replace(/\r?\n/g, '').length : 0;
+  }, []);
+
   const processInput = useCallback((text) => {
     if (!text) return;
     if (finishedRef.current) return;
 
+    if (!articleRef.current) return;
+    const typableLen = getTypableLength(articleRef.current.content);
+
     // 如果已经输入到最后一个字，不再追加新内容到打字框
-    if (articleRef.current && inputRef.current.length >= articleRef.current.content.length) {
+    if (inputRef.current.length >= typableLen) {
       return;
     }
 
@@ -668,8 +841,8 @@ function TypingEditor() {
       startTimeRef.current = Date.now();
     }
 
-    // 截断多余输入，只取到文章内容长度
-    const maxLen = articleRef.current ? articleRef.current.content.length : Infinity;
+    // 截断多余输入，只取到可输入内容长度
+    const maxLen = typableLen;
     const allowedText = text.slice(0, maxLen - inputRef.current.length);
     if (!allowedText) return;
 
@@ -679,11 +852,11 @@ function TypingEditor() {
     calculateStatsRef.current(newInput);
 
     // 检查是否全部正确完成
-    if (articleRef.current && newInput.length >= articleRef.current.content.length) {
-      const content = articleRef.current.content;
+    if (newInput.length >= typableLen) {
+      const typableContent = getTypableContent(articleRef.current.content);
       let allCorrect = true;
-      for (let i = 0; i < content.length; i++) {
-        if (newInput[i] !== content[i]) {
+      for (let i = 0; i < typableContent.length; i++) {
+        if (newInput[i] !== typableContent[i]) {
           allCorrect = false;
           break;
         }
@@ -692,18 +865,25 @@ function TypingEditor() {
         finishTypingRef.current();
       }
     }
-  }, []);
+  }, [getTypableLength, getTypableContent]);
 
   const calculateStatsRef = React.useRef((currentInput) => {
     if (!articleRef.current) return;
     const content = articleRef.current.content;
+    // 跳过换行符进行比对
+    const typableContent = content.replace(/\r?\n/g, '');
     let correct = 0;
     const newErrors = new Set();
+    const newWrongChars = {};
     for (let i = 0; i < currentInput.length; i++) {
-      if (i < content.length && currentInput[i] === content[i]) {
+      if (i < typableContent.length && currentInput[i] === typableContent[i]) {
         correct++;
       } else {
         newErrors.add(i);
+        // 记录用户输入的错误字符
+        if (i < currentInput.length) {
+          newWrongChars[i] = currentInput[i];
+        }
       }
     }
     const elapsed = (Date.now() - startTimeRef.current) / 1000 / 60;
@@ -711,6 +891,7 @@ function TypingEditor() {
     const accuracy = currentInput.length > 0 ? Math.round((correct / currentInput.length) * 100) : 100;
     setStats({ wpm, accuracy, correct, total: currentInput.length });
     setErrors(newErrors);
+    setWrongChars(newWrongChars);
     setCharIndex(currentInput.length);
   });
 
@@ -737,8 +918,14 @@ function TypingEditor() {
       composingRef.current = true;
     };
 
+    const handleCompositionUpdate = (e) => {
+      // IME组合中，显示正在输入的拼音
+      setComposingText(e.data || '');
+    };
+
     const handleCompositionEnd = (e) => {
       composingRef.current = false;
+      setComposingText('');
       if (finishedRef.current) {
         hiddenInput.value = '';
         return;
@@ -781,6 +968,7 @@ function TypingEditor() {
 
     hiddenInput.addEventListener('input', handleInput);
     hiddenInput.addEventListener('compositionstart', handleCompositionStart);
+    hiddenInput.addEventListener('compositionupdate', handleCompositionUpdate);
     hiddenInput.addEventListener('compositionend', handleCompositionEnd);
     hiddenInput.addEventListener('keydown', handleKeyDown);
     hiddenInput.addEventListener('blur', handleBlur);
@@ -788,6 +976,7 @@ function TypingEditor() {
     return () => {
       hiddenInput.removeEventListener('input', handleInput);
       hiddenInput.removeEventListener('compositionstart', handleCompositionStart);
+      hiddenInput.removeEventListener('compositionupdate', handleCompositionUpdate);
       hiddenInput.removeEventListener('compositionend', handleCompositionEnd);
       hiddenInput.removeEventListener('keydown', handleKeyDown);
       hiddenInput.removeEventListener('blur', handleBlur);
@@ -802,59 +991,92 @@ function TypingEditor() {
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
     const art = articleRef.current;
     const content = art ? art.content : '';
+    const typableContent = content.replace(/\r?\n/g, '');
     let correct = 0;
-    for (let i = 0; i < Math.min(currentInput.length, content.length); i++) {
-      if (currentInput[i] === content[i]) correct++;
+    for (let i = 0; i < Math.min(currentInput.length, typableContent.length); i++) {
+      if (currentInput[i] === typableContent[i]) correct++;
     }
     const wpm = elapsed > 0 ? Math.round(correct / (elapsed / 60)) : 0;
     const accuracy = currentInput.length > 0 ? Math.round((correct / currentInput.length) * 100) : 100;
-    const result = { wpm, accuracy, correctChars: correct, totalChars: currentInput.length, durationSeconds: Math.round(elapsed) };
-    setResults(result);
-    setShowResult(true);
+    const result = { wpm, accuracy, correctChars: correct, totalChars: currentInput.length, durationSeconds: Math.round(elapsed), ignored: false };
 
     if (user) {
       try {
         if (isTest) {
-          await api('/tests/submit', {
+          const submitRes = await api('/tests/submit', {
             method: 'POST',
             body: JSON.stringify({ testId: parseInt(id), ...result, completed: 1 })
           });
+          if (submitRes.ignored) result.ignored = true;
           const r = await api(`/tests/${id}/ranking`);
-          setRanking(r);
+          setRanking(r.data || r);
           const mr = await api(`/tests/${id}/my-result`);
           setMyResult(mr);
         } else {
-          // 练习模式提交练习结果
-          await api('/practice/submit', {
+          const submitRes = await api('/practice/submit', {
             method: 'POST',
             body: JSON.stringify({ articleId: parseInt(id), ...result })
           });
+          if (submitRes.ignored) result.ignored = true;
           const r = await api(`/articles/${id}/ranking`);
-          setRanking(r);
+          setRanking(r.data || r);
         }
       } catch (err) {}
     }
+
+    setResults(result);
+    setShowResult(true);
   });
 
   const renderArticle = () => {
     if (!article) return null;
     const chars = article.content.split('');
 
-    return chars.map((char, idx) => {
+    // 构建跳过换行符的映射：displayIndex -> charIndex
+    // displayIndex 是排除换行符后的序号，用于与输入进行比对
+    let displayIdx = 0;
+    const elements = [];
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      // 换行符渲染为 <br>，不参与输入比对
+      if (char === '\n' || char === '\r') {
+        // \r\n 组合只渲染一个 <br>
+        if (char === '\r' && i + 1 < chars.length && chars[i + 1] === '\n') {
+          continue; // 跳过 \r，等处理 \n 时再渲染
+        }
+        elements.push(<br key={`br-${i}`} />);
+        continue;
+      }
+
       let cls = 'char pending';
-      if (idx < charIndex) {
-        cls = errors.has(idx) ? 'char incorrect' : 'char correct';
-      } else if (idx === charIndex) {
+      if (displayIdx < charIndex) {
+        cls = errors.has(displayIdx) ? 'char incorrect' : 'char correct';
+      } else if (displayIdx === charIndex) {
         cls = 'char current';
       }
       const isSpace = char === ' ';
       if (isSpace) {
         cls += ' special-space';
       }
-      return <span key={idx} className={cls}>
-        {isSpace ? <span className="space-indicator">␣</span> : char}
-      </span>;
-    });
+      // 如果有错误字符，显示错误字符提示
+      const wrongChar = wrongChars[displayIdx];
+      const isCurrent = displayIdx === charIndex;
+      elements.push(
+        <span key={i} className={cls} style={{ position: 'relative' }}>
+          {isSpace ? <span className="space-indicator">␣</span> : char}
+          {wrongChar && (
+            <span className="wrong-char-hint">
+              {wrongChar === ' ' ? '␣' : wrongChar}
+            </span>
+          )}
+          {isCurrent && composingText && (
+            <span className="ime-composing-preview">{composingText}</span>
+          )}
+        </span>
+      );
+      displayIdx++;
+    }
+    return elements;
   };
 
   const formatTime = (s) => {
@@ -903,6 +1125,38 @@ function TypingEditor() {
     return () => window.removeEventListener('scroll', handleUserScroll);
   }, []);
 
+  // 检测 status-bar 是否滚出视口，超出时悬浮固定到顶部
+  useEffect(() => {
+    const statusBar = document.getElementById('typing-status-bar');
+    if (!statusBar) return;
+
+    const sentinel = document.createElement('div');
+    sentinel.style.position = 'absolute';
+    sentinel.style.top = '0';
+    sentinel.style.height = '1px';
+    sentinel.style.width = '1px';
+    sentinel.style.pointerEvents = 'none';
+    statusBar.parentNode?.insertBefore(sentinel, statusBar);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          statusBar.classList.remove('sticky');
+        } else {
+          statusBar.classList.add('sticky');
+        }
+      },
+      { threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+      sentinel.remove();
+    };
+  }, [article]);
+
   // 自动滚动到当前正在输入的字符位置
   // 使用 useLayoutEffect 在 DOM 更新后立即执行，避免闪烁
   React.useLayoutEffect(() => {
@@ -912,6 +1166,20 @@ function TypingEditor() {
     if (!currentChar) return;
 
     const charRect = currentChar.getBoundingClientRect();
+
+    // 更新隐藏输入框位置，让输入法候选框显示在当前字符旁边
+    if (hiddenInputRef.current) {
+      hiddenInputRef.current.style.left = charRect.left + 'px';
+      hiddenInputRef.current.style.top = (charRect.top + charRect.height + 2) + 'px';
+      hiddenInputRef.current.style.width = Math.max(charRect.width, 20) + 'px';
+      hiddenInputRef.current.style.height = charRect.height + 'px';
+      // 确保使用 clip:auto 而非 opacity:0，这样IME候选窗才能正常显示
+      hiddenInputRef.current.style.clip = 'auto';
+      hiddenInputRef.current.style.color = 'transparent';
+      hiddenInputRef.current.style.caretColor = 'transparent';
+      hiddenInputRef.current.style.background = 'transparent';
+    }
+    
     const viewportHeight = window.innerHeight;
     
     // 当前字符是否在视口可见范围内（给一些边距）
@@ -934,31 +1202,55 @@ function TypingEditor() {
     <div className="typing-editor" ref={containerRef}>
       <a href="/typing" className="back-link">⬅ 返回列表</a>
 
-      <div className="status-bar">
-        <div className="status-item">
-          <div className={`status-value ${timeLeft <= 30 ? 'timer-warning' : ''}`}>
-            {formatTime(timeLeft)}
+      <div className="status-bar" id="typing-status-bar">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div className="status-stats-row" style={{ flex: 1 }}>
+            <div className="status-item">
+              <div className={`status-value ${timeLeft <= 30 ? 'timer-warning' : ''}`}>
+                {formatTime(timeLeft)}
+              </div>
+              <div className="status-label">⏱ 倒计时</div>
+            </div>
+            <div className="status-item">
+              <div className="status-value">{stats.wpm}</div>
+              <div className="status-label">⚡ 字/分钟</div>
+            </div>
+            <div className="status-item">
+              <div className="status-value">{stats.accuracy}%</div>
+              <div className="status-label">🎯 正确率</div>
+            </div>
+            <div className="status-item">
+              <div className="status-value">{stats.correct}/{article.content.replace(/\r?\n/g, '').length}</div>
+              <div className="status-label">✅ 进度</div>
+            </div>
           </div>
-          <div className="status-label">⏱ 倒计时</div>
+          {/* 中文拼音提示 - 固定占位区域，保持布局稳定 */}
+          {article?.type === 'chinese' && !finished && (() => {
+            const typableContent = article.content.replace(/\r?\n/g, '');
+            const curChar = charIndex < typableContent.length ? typableContent[charIndex] : '';
+            const py = curChar ? getPinyin(curChar) : null;
+            return (
+              <div className="status-item pinyin-hint" style={{ flexShrink: 0, minWidth: 80, textAlign: 'center' }}>
+                <div className="status-value" style={{
+                  background: py ? 'linear-gradient(135deg, #3498db, #74B9FF)' : 'transparent',
+                  WebkitBackgroundClip: py ? 'text' : 'unset',
+                  WebkitTextFillColor: py ? 'transparent' : 'transparent',
+                  backgroundClip: py ? 'text' : 'unset',
+                  fontSize: '1.2em',
+                  minHeight: '1.8em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>{py || '\u00A0'}</div>
+                <div className="status-label" style={{ color: py ? '#3498db' : 'transparent' }}>🔤 拼音</div>
+              </div>
+            );
+          })()}
         </div>
-        <div className="status-item">
-          <div className="status-value">{stats.wpm}</div>
-          <div className="status-label">⚡ 字/分钟</div>
-        </div>
-        <div className="status-item">
-          <div className="status-value">{stats.accuracy}%</div>
-          <div className="status-label">🎯 正确率</div>
-        </div>
-        <div className="status-item">
-          <div className="status-value">{stats.correct}/{article.content.length}</div>
-          <div className="status-label">✅ 进度</div>
-        </div>
-      </div>
-      <div className="typing-progress-wrapper">
         <div className="typing-progress-bar">
-          <div className="typing-progress-fill" style={{ width: `${article.content.length > 0 ? Math.min(100, (charIndex / article.content.length) * 100) : 0}%` }} />
+          <div className="typing-progress-fill" style={{ width: `${(() => { const len = article.content.replace(/\r?\n/g, '').length; return len > 0 ? Math.min(100, (charIndex / len) * 100) : 0; })()}%` }} />
         </div>
-        <div className="status-label">
+        <div className="status-label" style={{ textAlign: 'center', marginTop: 4 }}>
           {!started ? '⌨️ 开始输入' : finished ? '✅ 完成' : '⌨️ 输入中...'}
         </div>
       </div>
@@ -975,7 +1267,8 @@ function TypingEditor() {
         {renderArticle()}
       </div>
 
-      {/* 隐藏的输入框放在文章下方，避免focus时页面跳回顶部 */}
+      {/* 隐藏的输入框定位到当前字符旁边，让输入法候选框显示在正确位置 */}
+      {/* 使用 clip 裁剪而非 opacity:0，因为 opacity:0 会导致某些浏览器的IME候选窗不显示 */}
       <input
         ref={hiddenInputRef}
         type="text"
@@ -985,12 +1278,51 @@ function TypingEditor() {
         autoCapitalize="off"
         spellCheck="false"
         style={{
-          position: 'absolute',
-          left: '-9999px',
-          width: '1px',
-          height: '1px',
-          opacity: 0,
+          position: 'fixed',
+          left: '0px',
+          top: '0px',
+          width: '20px',
+          height: '24px',
+          clip: 'rect(0, 0, 0, 0)',
           pointerEvents: 'none',
+          fontSize: '16px',
+          lineHeight: '1',
+          padding: 0,
+          border: '1px solid transparent',
+          background: 'transparent',
+          color: 'transparent',
+          caretColor: 'transparent',
+          outline: 'none',
+          resize: 'none',
+        }}
+        ref={(el) => {
+          hiddenInputRef.current = el;
+          if (el) {
+            // 动态跟随当前字符位置
+            const updatePos = () => {
+              const charEl = document.querySelector('.char.current');
+              if (charEl) {
+                const rect = charEl.getBoundingClientRect();
+                el.style.left = rect.left + 'px';
+                el.style.top = (rect.top + rect.height + 2) + 'px';
+                el.style.width = Math.max(rect.width, 20) + 'px';
+                el.style.height = rect.height + 'px';
+                // 使用 clip 方式隐藏而非 opacity，确保IME候选窗可见
+                el.style.clip = 'auto';
+                el.style.color = 'transparent';
+                el.style.caretColor = 'transparent';
+                el.style.background = 'transparent';
+              }
+            };
+            updatePos();
+            // 使用 MutationObserver 监听字符变化
+            const observer = new MutationObserver(updatePos);
+            const articleDisplay = document.querySelector('.article-display');
+            if (articleDisplay) {
+              observer.observe(articleDisplay, { childList: true, subtree: true, characterData: true });
+            }
+            el._cleanup = () => observer.disconnect();
+          }
         }}
       />
 
@@ -1047,14 +1379,22 @@ function ResultModal({ results, isTest, ranking, myResult, onClose, onRetry, onB
     return '加油！每天练习会越来越快！';
   };
 
-  const userRank = ranking.findIndex(r => r.student_name === myResult?.student_name) + 1;
-
   return (
     <div className="modal-overlay result-modal">
       <div className="modal">
         <div className="result-icon">{getEmoji()}</div>
         <h2>{isTest ? '测试完成！' : '练习完成！'}</h2>
         <p style={{ color: '#636e72', marginBottom: 15 }}>{getComment()}</p>
+
+        {results.ignored && (
+          <div style={{
+            background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8,
+            padding: '10px 14px', marginBottom: 15, fontSize: '0.9em', color: '#856404',
+            textAlign: 'center'
+          }}>
+            ⚠️ 正确率低于60%，本次结果不记录成绩，请继续加油！
+          </div>
+        )}
 
         <div className="result-stats">
           <div className="result-stat">
@@ -1075,43 +1415,40 @@ function ResultModal({ results, isTest, ranking, myResult, onClose, onRetry, onB
           正确 {results.correctChars} 字 / 共输入 {results.totalChars} 字
         </p>
 
-        {ranking.length > 0 && (
+        {ranking.length > 0 && !isTest && (
           <div className="ranking-section" style={{ marginTop: 15, textAlign: 'left' }}>
-            <h3>🏆 {isTest ? '班级排行' : '练习排行'}</h3>
-            {isTest && userRank > 0 && (
-              <p style={{ fontSize: '0.85em', color: '#636e72', marginBottom: 8 }}>
-                你的排名：第 <strong style={{ color: '#FF6B6B' }}>{userRank}</strong> 名
-              </p>
-            )}
-            {!isTest && (
-              <p style={{ fontSize: '0.85em', color: '#636e72', marginBottom: 8 }}>
-                所有完成此练习的学生排名
-              </p>
-            )}
-            <table className="ranking-table">
+            <h3>🏆 练习排行</h3>
+            <p style={{ fontSize: '0.85em', color: '#636e72', marginBottom: 8 }}>
+              所有完成此练习的学生排名
+            </p>
+            <table className="ranking-table" style={{ fontSize: '0.85em' }}>
               <thead>
                 <tr>
-                  <th>排名</th>
+                  <th style={{ width: 50 }}>排名</th>
                   <th>姓名</th>
-                  {!isTest && <th>学校</th>}
+                  <th>学校</th>
                   <th>班级</th>
                   <th>速度</th>
                   <th>正确率</th>
+                  <th>用时</th>
+                  <th>完成时间</th>
                 </tr>
               </thead>
               <tbody>
                 {ranking.slice(0, 20).map((r, i) => (
-                  <tr key={i} className={isTest && r.student_name === myResult?.student_name ? 'my-rank' : ''}>
+                  <tr key={i}>
                     <td>
                       {i < 3 ? (
                         <span className={`rank-badge rank-${i + 1}`}>{i + 1}</span>
                       ) : i + 1}
                     </td>
-                    <td>{r.student_name}</td>
-                    {!isTest && <td>{r.school_name}</td>}
-                    <td>{r.class_name}</td>
-                    <td>{r.wpm} 字/分</td>
-                    <td>{r.accuracy}%</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.student_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.school_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.class_name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.wpm} 字/分</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.accuracy}%</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.duration_seconds != null ? `${Math.floor(r.duration_seconds / 60)}'${r.duration_seconds % 60}"` : '-'}</td>
+                    <td style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>{formatDateTime(r.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1800,15 +2137,29 @@ function PracticeDataManager() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
+  // 文章筛选
+  const [articles, setArticles] = useState([]);
+  const [filterArticleId, setFilterArticleId] = useState('');
+  // 测试结果管理
+  const [resultEditing, setResultEditing] = useState(null);
+  const [resultEditData, setResultEditData] = useState(null);
+  const [resultSaving, setResultSaving] = useState(false);
+  const [resultForm, setResultForm] = useState({ student_name: '', class_name: '', wpm: 0, accuracy: 0, correct_chars: 0, total_chars: 0, duration_seconds: 0, completed: 0 });
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const loadData = useCallback(async (p, ps) => {
+  const loadData = useCallback(async (p, ps, articleId) => {
     setLoading(true);
     try {
-      const r = await adminApi(`/admin/practices/results?page=${p}&pageSize=${ps}`);
+      let url = `/admin/practices/results?page=${p}&pageSize=${ps}`;
+      if (articleId) url += `&articleId=${articleId}`;
+      const r = await adminApi(url);
       setResults(r.data);
       setTotal(r.total);
       setPage(r.page);
       setPageSize(r.pageSize);
+      setSelectedIds(new Set());
     } catch (err) {
       setResults([]);
       setTotal(0);
@@ -1817,13 +2168,52 @@ function PracticeDataManager() {
   }, []);
 
   useEffect(() => {
+    adminApi('/admin/articles').then(setArticles).catch(() => {});
     loadData(1, pageSize);
   }, []);
 
   const handlePageSizeChange = (newSize) => {
     const newPageSize = parseInt(newSize);
     setPageSize(newPageSize);
-    loadData(1, newPageSize);
+    loadData(1, newPageSize, filterArticleId);
+  };
+
+  const handleArticleFilter = (articleId) => {
+    setFilterArticleId(articleId);
+    loadData(1, pageSize, articleId);
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === results.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(results.map(r => r.id)));
+    }
+  };
+
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定删除选中的 ${selectedIds.size} 条练习数据？此操作不可撤销。`)) return;
+    setDeleting(true);
+    try {
+      await adminApi('/admin/practices/results/batch-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+    } catch (err) {
+      alert('删除失败：' + err.message);
+    }
+    setDeleting(false);
+    loadData(page, pageSize, filterArticleId);
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -1831,9 +2221,9 @@ function PracticeDataManager() {
   const exportCSV = () => {
     if (results.length === 0) return;
     const BOM = '\uFEFF';
-    let csv = BOM + '序号,文章标题,学生姓名,学校,班级,速度(字/分),正确率(%),提交时间\n';
-    results.forEach((r, i) => {
-      csv += `${(page - 1) * pageSize + i + 1},${r.article_title || '-'},${r.student_name},${r.school_name},${r.class_name},${r.wpm},${r.accuracy}%,${r.created_at}\n`;
+    let csv = BOM + '文章标题,学生姓名,学校,班级,速度(字/分),正确率(%),提交时间\n';
+    results.forEach((r) => {
+      csv += `${r.article_title || '-'},${r.student_name},${r.school_name},${r.class_name},${r.wpm},${r.accuracy}%,${r.created_at}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1851,6 +2241,13 @@ function PracticeDataManager() {
         查看所有学生的练习数据，按提交时间倒序排列
       </p>
       <div className="admin-form" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.9em', color: '#636e72' }}>筛选文章：</span>
+        <select value={filterArticleId} onChange={e => handleArticleFilter(e.target.value)} style={{ width: 180 }}>
+          <option value="">全部文章</option>
+          {articles.map(a => (
+            <option key={a.id} value={a.id}>{a.title}</option>
+          ))}
+        </select>
         <span style={{ fontSize: '0.9em', color: '#636e72' }}>每页显示：</span>
         <select value={pageSize} onChange={e => handlePageSizeChange(e.target.value)} style={{ width: 100 }}>
           <option value={50}>50 条</option>
@@ -1870,12 +2267,30 @@ function PracticeDataManager() {
         <div className="empty-state">暂无练习数据</div>
       ) : (
         <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: '0.9em', color: '#636e72' }}>
+              {selectedIds.size > 0 ? `已选 ${selectedIds.size} 条` : '未选择'}
+            </span>
+            {selectedIds.size > 0 && (
+              <button
+                className="btn btn-danger btn-small"
+                onClick={batchDelete}
+                disabled={deleting}
+              >{deleting ? '删除中...' : `🗑️ 批量删除 (${selectedIds.size})`}</button>
+            )}
+          </div>
           <table className="admin-table">
-            <thead><tr><th>序号</th><th>文章</th><th>学生</th><th>学校</th><th>班级</th><th>速度</th><th>正确率</th><th>时间</th></tr></thead>
+            <thead><tr>
+              <th style={{ width: 40 }}>
+                <input type="checkbox" checked={selectedIds.size === results.length && results.length > 0} onChange={toggleSelectAll} />
+              </th>
+              <th>文章</th><th>学生</th><th>学校</th><th>班级</th><th>速度</th><th>正确率</th><th>时间</th></tr></thead>
             <tbody>
-              {results.map((r, i) => (
-                <tr key={r.id}>
-                  <td>{(page - 1) * pageSize + i + 1}</td>
+              {results.map((r) => (
+                <tr key={r.id} style={selectedIds.has(r.id) ? { background: '#fff3cd' } : {}}>
+                  <td>
+                    <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} />
+                  </td>
                   <td>{r.article_title || '-'}</td>
                   <td>{r.student_name}</td>
                   <td>{r.school_name}</td>
@@ -1892,7 +2307,7 @@ function PracticeDataManager() {
               <button
                 className="btn btn-secondary btn-small"
                 disabled={page <= 1}
-                onClick={() => loadData(page - 1, pageSize)}
+                onClick={() => loadData(page - 1, pageSize, filterArticleId)}
               >◀ 上一页</button>
               <span style={{ fontSize: '0.9em', color: '#636e72' }}>
                 第 {page} / {totalPages} 页
@@ -1900,7 +2315,7 @@ function PracticeDataManager() {
               <button
                 className="btn btn-secondary btn-small"
                 disabled={page >= totalPages}
-                onClick={() => loadData(page + 1, pageSize)}
+                onClick={() => loadData(page + 1, pageSize, filterArticleId)}
               >下一页 ▶</button>
             </div>
           )}
@@ -1925,9 +2340,17 @@ function TestManager() {
   const [saving, setSaving] = useState(false);
   const [editSchools, setEditSchools] = useState([]);
   const [editClasses, setEditClasses] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
+  // 测试结果管理
+  const [resultEditing, setResultEditing] = useState(null);
+  const [resultEditData, setResultEditData] = useState(null);
+  const [resultSaving, setResultSaving] = useState(false);
+  const [resultForm, setResultForm] = useState({ student_name: '', class_name: '', wpm: 0, accuracy: 0, correct_chars: 0, total_chars: 0, duration_seconds: 0, completed: 0 });
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const load = () => {
-    adminApi('/admin/tests').then(setItems).catch(() => {});
+    adminApi('/admin/tests').then(data => { setItems(data); setSelectedIds(new Set()); }).catch(() => {});
     adminApi('/admin/articles').then(setArticles).catch(() => {});
     adminApi('/admin/schools').then(setSchools).catch(() => {});
     adminApi('/admin/classes').then(setAllClasses).catch(() => {});
@@ -1988,15 +2411,89 @@ function TestManager() {
   };
 
   const remove = async (id) => {
-    if (!confirm('确定删除？')) return;
+    if (!confirm('确定删除该测试及其所有结果数据？')) return;
     await adminApi(`/admin/tests/${id}`, { method: 'DELETE' });
     load();
   };
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map(t => t.id)));
+    }
+  };
+
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定删除选中的 ${selectedIds.size} 个测试及其所有结果数据？此操作不可撤销。`)) return;
+    setDeleting(true);
+    try {
+      await adminApi('/admin/tests/batch-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+    } catch (err) {
+      alert('删除失败：' + err.message);
+    }
+    setDeleting(false);
+    load();
+  };
+
   const viewTestResults = async (testId) => {
-    const r = await adminApi(`/admin/tests/${testId}/results`);
+    const r = await adminApi(`/admin/tests/${testId}/results/detail`);
     setResults(r);
     setViewResults(testId);
+    setShowAddForm(false);
+    setResultEditing(null);
+  };
+
+  // 测试结果 - 新增
+  const addResult = async () => {
+    if (!resultForm.student_name) return;
+    setResultSaving(true);
+    await adminApi(`/admin/tests/${viewResults}/results`, {
+      method: 'POST',
+      body: JSON.stringify(resultForm)
+    });
+    setResultSaving(false);
+    setShowAddForm(false);
+    setResultForm({ student_name: '', class_name: '', wpm: 0, accuracy: 0, correct_chars: 0, total_chars: 0, duration_seconds: 0, completed: 0 });
+    viewTestResults(viewResults);
+  };
+
+  // 测试结果 - 编辑
+  const startEditResult = (r) => {
+    setResultEditing(r.id);
+    setResultEditData({ ...r });
+  };
+
+  const saveEditResult = async () => {
+    setResultSaving(true);
+    await adminApi(`/admin/tests/results/${resultEditing}`, {
+      method: 'PUT',
+      body: JSON.stringify(resultEditData)
+    });
+    setResultSaving(false);
+    setResultEditing(null);
+    setResultEditData(null);
+    viewTestResults(viewResults);
+  };
+
+  // 测试结果 - 删除
+  const deleteResult = async (id) => {
+    if (!confirm('确定删除这条测试结果？')) return;
+    await adminApi(`/admin/tests/results/${id}`, { method: 'DELETE' });
+    viewTestResults(viewResults);
   };
 
   const articleOptions = articles.map(a => ({ value: a.id, label: `${a.title} (${a.type === 'chinese' ? '中文' : '英文'})` }));
@@ -2023,11 +2520,30 @@ function TestManager() {
         <button className="btn btn-primary btn-small" onClick={add}>创建测试</button>
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: '0.9em', color: '#636e72' }}>
+          {selectedIds.size > 0 ? `已选 ${selectedIds.size} 项` : '未选择'}
+        </span>
+        {selectedIds.size > 0 && (
+          <button
+            className="btn btn-danger btn-small"
+            onClick={batchDelete}
+            disabled={deleting}
+          >{deleting ? '删除中...' : `🗑️ 批量删除 (${selectedIds.size})`}</button>
+        )}
+      </div>
       <table className="admin-table">
-        <thead><tr><th>标题</th><th>文章</th><th>班级</th><th>测试码</th><th>时长</th><th>状态</th><th>操作</th></tr></thead>
+        <thead><tr>
+          <th style={{ width: 40 }}>
+            <input type="checkbox" checked={selectedIds.size === items.length && items.length > 0} onChange={toggleSelectAll} />
+          </th>
+          <th>标题</th><th>文章</th><th>班级</th><th>测试码</th><th>时长</th><th>状态</th><th>操作</th></tr></thead>
         <tbody>
           {items.map(t => (
-            <tr key={t.id}>
+            <tr key={t.id} style={selectedIds.has(t.id) ? { background: '#fff3cd' } : {}}>
+              <td>
+                <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
+              </td>
               <td>{t.title}</td>
               <td>{t.article_title}</td>
               <td>{t.school_name} - {t.class_name}</td>
@@ -2076,29 +2592,108 @@ function TestManager() {
       )}
 
       {viewResults && (
-        <div className="modal-overlay" onClick={() => setViewResults(null)}>
-          <div className="modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
-            <h3>📊 测试结果</h3>
+        <div className="modal-overlay" onClick={() => { setViewResults(null); setResultEditing(null); setShowAddForm(false); }}>
+          <div className="modal" style={{ maxWidth: 900, padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <h3 style={{ margin: 0 }}>📊 测试结果管理</h3>
+              <span style={{ color: '#636e72', fontSize: '0.8em' }}>共 {results.length} 条</span>
+            </div>
+
+            {/* 新增表单 */}
+            {!showAddForm ? (
+              <button className="btn btn-primary btn-small" style={{ marginBottom: 8, padding: '3px 10px', fontSize: '0.8em' }} onClick={() => setShowAddForm(true)}>➕ 新增结果</button>
+            ) : (
+              <div style={{ background: '#f8f9fa', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: '0.85em' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>学生姓名*</label><input value={resultForm.student_name} onChange={e => setResultForm({ ...resultForm, student_name: e.target.value })} placeholder="姓名" style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>班级</label><input value={resultForm.class_name} onChange={e => setResultForm({ ...resultForm, class_name: e.target.value })} placeholder="班级" style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>速度(字/分)</label><input type="number" value={resultForm.wpm} onChange={e => setResultForm({ ...resultForm, wpm: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>正确率(%)</label><input type="number" value={resultForm.accuracy} onChange={e => setResultForm({ ...resultForm, accuracy: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>正确字数</label><input type="number" value={resultForm.correct_chars} onChange={e => setResultForm({ ...resultForm, correct_chars: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>总字数</label><input type="number" value={resultForm.total_chars} onChange={e => setResultForm({ ...resultForm, total_chars: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>用时(秒)</label><input type="number" value={resultForm.duration_seconds} onChange={e => setResultForm({ ...resultForm, duration_seconds: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.75em', color: '#636e72', marginBottom: 2 }}>完成</label><select value={resultForm.completed} onChange={e => setResultForm({ ...resultForm, completed: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }}><option value={1}>是</option><option value={0}>否</option></select></div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <button className="btn btn-primary btn-small" style={{ padding: '2px 10px', fontSize: '0.8em' }} onClick={addResult} disabled={resultSaving}>{resultSaving ? '...' : '保存'}</button>
+                  <button className="btn btn-secondary btn-small" style={{ padding: '2px 10px', fontSize: '0.8em' }} onClick={() => { setShowAddForm(false); setResultForm({ student_name: '', class_name: '', wpm: 0, accuracy: 0, correct_chars: 0, total_chars: 0, duration_seconds: 0, completed: 0 }); }}>取消</button>
+                </div>
+              </div>
+            )}
+
             {results.length === 0 ? (
               <div className="empty-state">暂无测试结果</div>
             ) : (
-              <table className="ranking-table">
-                <thead><tr><th>排名</th><th>学生</th><th>班级</th><th>速度</th><th>正确率</th><th>完成</th></tr></thead>
-                <tbody>
-                  {results.map((r, i) => (
-                    <tr key={r.id}>
-                      <td>{i + 1}</td>
-                      <td>{r.student_name}</td>
-                      <td>{r.class_name}</td>
-                      <td>{r.wpm} 字/分</td>
-                      <td>{r.accuracy}%</td>
-                      <td>{r.completed ? '✅' : '❌'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <table className="ranking-table" style={{ fontSize: '0.85em' }}>
+                  <thead><tr><th style={{ width: 30 }}>#</th><th>学生</th><th>班级</th><th style={{ width: 70 }}>速度</th><th style={{ width: 60 }}>正确率</th><th style={{ width: 65 }}>正确/总</th><th style={{ width: 55 }}>用时</th><th style={{ width: 120 }}>完成时间</th><th style={{ width: 40 }}>✔</th><th style={{ width: 60 }}>操作</th></tr></thead>
+                  <tbody>
+                    {results.map((r, i) => (
+                      <tr key={r.id} style={{ ...(resultEditing === r.id ? { background: '#e3f2fd' } : {}), fontSize: '0.85em' }}>
+                        <td>{i + 1}</td>
+                        <td>{r.student_name}</td>
+                        <td>{r.class_name}</td>
+                        <td>{r.wpm}</td>
+                        <td>{r.accuracy}%</td>
+                        <td>{r.correct_chars}/{r.total_chars}</td>
+                        <td>{r.duration_seconds != null ? `${Math.floor(r.duration_seconds / 60)}'${r.duration_seconds % 60}"` : '-'}</td>
+                        <td style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>{formatDateTime(r.created_at)}</td>
+                        <td style={{ textAlign: 'center' }}>{r.completed ? '✅' : '❌'}</td>
+                        <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                          <button className="btn btn-secondary" style={{ padding: '1px 5px', fontSize: '0.75em', marginRight: 2 }} onClick={() => startEditResult(r)}>✏️</button>
+                          <button className="btn btn-danger" style={{ padding: '1px 5px', fontSize: '0.75em' }} onClick={() => deleteResult(r.id)}>✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <a
+                    href={`${API_BASE}/admin/tests/${viewResults}/results/export`}
+                    className="btn btn-secondary btn-small"
+                    style={{ textDecoration: 'none', flex: 1, textAlign: 'center', padding: '4px 10px', fontSize: '0.85em' }}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => {
+                      const token = getAdminToken();
+                      if (!token) {
+                        e.preventDefault();
+                        alert('请先登录管理员账号');
+                        return;
+                      }
+                      e.currentTarget.href = `${API_BASE}/admin/tests/${viewResults}/results/export?token=${encodeURIComponent(token)}`;
+                    }}
+                  >📥 导出CSV</a>
+                  <button className="btn btn-secondary btn-small" style={{ flex: 1, padding: '4px 10px', fontSize: '0.85em' }} onClick={() => { setViewResults(null); setResultEditing(null); setShowAddForm(false); }}>关闭</button>
+                </div>
+              </>
             )}
-            <button className="btn btn-secondary" style={{ marginTop: 15 }} onClick={() => setViewResults(null)}>关闭</button>
+            {results.length === 0 && (
+              <button className="btn btn-secondary btn-small" style={{ marginTop: 10 }} onClick={() => { setViewResults(null); setResultEditing(null); setShowAddForm(false); }}>关闭</button>
+            )}
+
+            {/* 编辑弹窗 */}
+            {resultEditing && resultEditData && (
+              <div className="modal-overlay" onClick={() => { setResultEditing(null); setResultEditData(null); }}>
+                <div className="modal edit-modal" style={{ padding: '16px 20px', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+                  <h3 style={{ margin: '0 0 10px' }}>编辑测试结果</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: '0.85em' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>学生姓名</label><input value={resultEditData.student_name || ''} onChange={e => setResultEditData({ ...resultEditData, student_name: e.target.value })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>班级</label><input value={resultEditData.class_name || ''} onChange={e => setResultEditData({ ...resultEditData, class_name: e.target.value })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>速度(字/分)</label><input type="number" value={resultEditData.wpm || 0} onChange={e => setResultEditData({ ...resultEditData, wpm: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>正确率(%)</label><input type="number" value={resultEditData.accuracy || 0} onChange={e => setResultEditData({ ...resultEditData, accuracy: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>正确字数</label><input type="number" value={resultEditData.correct_chars || 0} onChange={e => setResultEditData({ ...resultEditData, correct_chars: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>总字数</label><input type="number" value={resultEditData.total_chars || 0} onChange={e => setResultEditData({ ...resultEditData, total_chars: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>用时(秒)</label><input type="number" value={resultEditData.duration_seconds || 0} onChange={e => setResultEditData({ ...resultEditData, duration_seconds: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label style={{ fontSize: '0.8em' }}>完成状态</label><select value={resultEditData.completed} onChange={e => setResultEditData({ ...resultEditData, completed: Number(e.target.value) })} style={{ padding: '3px 6px', fontSize: '0.85em' }}><option value={1}>已完成</option><option value={0}>未完成</option></select></div>
+                  </div>
+                  <div className="edit-modal-actions" style={{ marginTop: 10 }}>
+                    <button className="btn btn-primary btn-small" style={{ padding: '3px 12px', fontSize: '0.85em' }} onClick={saveEditResult} disabled={resultSaving}>{resultSaving ? '保存中...' : '💾 保存'}</button>
+                    <button className="btn btn-secondary btn-small" style={{ padding: '3px 12px', fontSize: '0.85em' }} onClick={() => { setResultEditing(null); setResultEditData(null); }}>取消</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
