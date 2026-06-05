@@ -448,6 +448,89 @@ body::before {
   max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
+  position: relative;
+}
+
+/* 打字平台右上角紧凑用户栏 */
+.typing-user-bar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+.typing-user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  padding: 5px 10px 5px 5px;
+  border-radius: 20px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.typing-user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF6B6B, #FD79A8);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+
+.typing-user-name {
+  font-weight: 600;
+  color: #2D3436;
+  white-space: nowrap;
+}
+
+.typing-user-class {
+  color: #636E72;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.typing-logout-btn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.75em;
+  color: #636E72;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.typing-logout-btn:hover {
+  border-color: #FF6B6B;
+  color: #FF6B6B;
+  background: rgba(255,107,107,0.05);
+}
+
+.typing-login-btn {
+  background: linear-gradient(135deg, #FF6B6B, #FD79A8);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 5px 14px;
+  font-size: 0.8em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(255,107,107,0.3);
+}
+
+.typing-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255,107,107,0.4);
 }
 
 .typing-page .back-btn {
@@ -713,6 +796,8 @@ body::before {
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: normal;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .article-display:focus-within {
@@ -1029,6 +1114,43 @@ body::before {
 
 .admin-form textarea:focus {
   border-color: var(--primary);
+}
+
+/* 颜色选择器 */
+.color-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.color-picker-wrap input[type="color"] {
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.color-picker-wrap .color-hex {
+  font-size: 0.85em;
+  font-family: monospace;
+  color: #636E72;
 }
 
 .empty-state {

@@ -256,7 +256,7 @@ function TypingHome() {
   const [showPracticeRank, setShowPracticeRank] = useState(null);
   const [practiceRanking, setPracticeRanking] = useState([]);
   const [practiceMyResult, setPracticeMyResult] = useState(null);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   // 刷新列表数据的 key，返回列表时递增触发重新加载
@@ -341,6 +341,18 @@ function TypingHome() {
 
   return (
     <div className="typing-page">
+      <div className="typing-user-bar">
+        {user ? (
+          <div className="typing-user-info">
+            <span className="typing-user-avatar">{user.name[0]}</span>
+            <span className="typing-user-name">{user.name}</span>
+            <span className="typing-user-class">{user.schoolName} · {user.className}</span>
+            <button className="typing-logout-btn" onClick={logout}>退出</button>
+          </div>
+        ) : (
+          <button className="typing-login-btn" onClick={() => window.location.href = '/'}>🔑 登录</button>
+        )}
+      </div>
       <a href="/" className="back-btn">⬅ 返回导航</a>
       <h2>⌨️ 打字平台</h2>
 
@@ -357,7 +369,7 @@ function TypingHome() {
         <>
           <div className="filter-bar">
             <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>全部</button>
-            <button className={`filter-btn ${filter === 'chinese' ? 'active' : ''}`} onClick={() => setFilter('chinese')}>🇨🇳 中文</button>
+            <button className={`filter-btn ${filter === 'chinese' ? 'active' : ''}`} onClick={() => setFilter('chinese')}>CN 中文</button>
             <button className={`filter-btn ${filter === 'english' ? 'active' : ''}`} onClick={() => setFilter('english')}>EN 英文</button>
           </div>
           <div className="article-list">
@@ -1259,7 +1271,7 @@ function TypingEditor() {
         {isTest ? '🏆 测试' : '📝 练习'}：{article.title}
       </h3>
 
-      <div className="article-display" onClick={() => {
+      <div className="article-display" onPaste={(e) => e.preventDefault()} onClick={() => {
         if (hiddenInputRef.current) {
           hiddenInputRef.current.focus({ preventScroll: true });
         }
@@ -1277,6 +1289,7 @@ function TypingEditor() {
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck="false"
+        onPaste={(e) => e.preventDefault()}
         style={{
           position: 'fixed',
           left: '0px',
@@ -1578,6 +1591,12 @@ function EditModal({ title, fields, data, onChange, onSave, onClose, loading }) 
                 </select>
               ) : f.type === 'textarea' ? (
                 <textarea value={data[f.key] || ''} onChange={e => onChange({ ...data, [f.key]: e.target.value })} placeholder={f.placeholder} rows={4} />
+              ) : f.type === 'color' ? (
+                <div className="color-picker-wrap" onClick={() => { const inp = document.getElementById(`color-input-${f.key}`); if (inp) inp.click(); }}>
+                  <span className="color-swatch" style={{ background: data[f.key] || '#FF6B6B' }} />
+                  <input id={`color-input-${f.key}`} type="color" value={data[f.key] || '#FF6B6B'} onChange={e => onChange({ ...data, [f.key]: e.target.value })} />
+                  <span className="color-hex">{data[f.key] || '#FF6B6B'}</span>
+                </div>
               ) : (
                 <input type={f.type || 'text'} value={data[f.key] || ''} onChange={e => {
                   const val = f.type === 'number' ? Number(e.target.value) : e.target.value;
@@ -1609,10 +1628,12 @@ function CardManager() {
   const load = () => adminApi('/admin/cards').then(setCards).catch(() => {});
   useEffect(() => { load(); }, []);
 
+  const randomColor = () => '#' + Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
+
   const add = async () => {
     if (!form.title) return;
     await adminApi('/admin/cards', { method: 'POST', body: JSON.stringify(form) });
-    setForm({ title: '', description: '', icon: '📚', color: '#FF6B6B', link: '', is_local: false, local_path: '', sort_order: 0 });
+    setForm({ title: '', description: '', icon: '📚', color: randomColor(), link: '', is_local: false, local_path: '', sort_order: 0 });
     load();
   };
 
@@ -1643,7 +1664,11 @@ function CardManager() {
         <input placeholder="标题" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
         <input placeholder="描述" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
         <input placeholder="图标(emoji)" value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} style={{ width: 100 }} />
-        <input placeholder="颜色" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} style={{ width: 100 }} />
+        <div className="color-picker-wrap" onClick={() => document.getElementById('color-input-form')?.click()}>
+          <span className="color-swatch" style={{ background: form.color }} />
+          <input id="color-input-form" type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} />
+          <span className="color-hex">{form.color}</span>
+        </div>
         <input placeholder="链接" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} />
         <select value={form.is_local ? '1' : '0'} onChange={e => setForm({ ...form, is_local: e.target.value === '1' })}>
           <option value="0">外部链接</option>
@@ -1686,7 +1711,7 @@ function CardManager() {
             { key: 'title', label: '标题', placeholder: '标题' },
             { key: 'description', label: '描述', placeholder: '描述' },
             { key: 'icon', label: '图标(emoji)', placeholder: '📚' },
-            { key: 'color', label: '颜色', placeholder: '#FF6B6B' },
+            { key: 'color', label: '颜色', type: 'color' },
             { key: 'link', label: '链接', placeholder: 'https://...' },
             { key: 'local_path', label: '本地路径', placeholder: '/typing' },
             { key: 'sort_order', label: '排序', placeholder: '0', type: 'number' },
