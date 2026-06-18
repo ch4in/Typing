@@ -452,9 +452,24 @@ async function start() {
   app.get('/api/tests/:testId/my-result', authMiddleware, (req, res) => {
     const result = db.prepare(`
       SELECT * FROM test_results 
-      WHERE test_id = ? AND student_id = ?
+      WHERE test_id = ? AND student_id = ? AND completed = 1
       ORDER BY id DESC LIMIT 1
     `).get(Number(req.params.testId), req.studentId);
+
+    if (result) {
+      // 获取所有已完成学生的最高成绩排名，然后在 JS 中计算该学生的排名
+      const allRanked = db.prepare(`
+        SELECT tr.student_id, MAX(tr.wpm) as wpm, MAX(tr.accuracy) as accuracy, MIN(tr.duration_seconds) as duration_seconds, MAX(tr.created_at) as created_at
+        FROM test_results tr
+        WHERE tr.test_id = ? AND tr.completed = 1
+        GROUP BY tr.student_id
+        ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+      `).all(Number(req.params.testId));
+
+      const idx = allRanked.findIndex(r => Number(r.student_id) === Number(result.student_id));
+      result.rank = idx >= 0 ? idx + 1 : null;
+    }
+
     saveDB(sqlDb);
     res.json(result || null);
   });
@@ -491,6 +506,21 @@ async function start() {
       WHERE article_id = ? AND student_id = ?
       ORDER BY id DESC LIMIT 1
     `).get(Number(req.params.articleId), req.studentId);
+
+    if (result) {
+      // 获取所有学生的最高成绩排名，然后在 JS 中计算该学生的排名
+      const allRanked = db.prepare(`
+        SELECT student_id, MAX(wpm) as wpm, MAX(accuracy) as accuracy, MIN(duration_seconds) as duration_seconds, MAX(created_at) as created_at
+        FROM practice_results 
+        WHERE article_id = ?
+        GROUP BY student_id
+        ORDER BY wpm DESC, accuracy DESC, duration_seconds ASC, created_at ASC
+      `).all(Number(req.params.articleId));
+
+      const idx = allRanked.findIndex(r => Number(r.student_id) === Number(result.student_id));
+      result.rank = idx >= 0 ? idx + 1 : null;
+    }
+
     saveDB(sqlDb);
     res.json(result || null);
   });
@@ -903,6 +933,18 @@ async function start() {
     saveDB(sqlDb);
     res.json({ count });
   });
+
+  // 托管前端构建产物（生产模式）
+  const clientDist = path.join(__dirname, '..', 'client', 'dist');
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    // SPA fallback：所有非 API 请求返回 index.html
+    app.get('*', (req, res) => {
+      if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(clientDist, 'index.html'));
+      }
+    });
+  }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ 服务器运行在 http://0.0.0.0:${PORT}`);

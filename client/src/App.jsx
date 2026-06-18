@@ -347,7 +347,7 @@ function TypingHome() {
             <span className="typing-user-avatar">{user.name[0]}</span>
             <span className="typing-user-name">{user.name}</span>
             <span className="typing-user-class">{user.schoolName} · {user.className}</span>
-            <button className="typing-logout-btn" onClick={logout}>退出</button>
+            <button className="typing-logout-btn" onClick={() => { logout(); navigate('/'); }}>退出</button>
           </div>
         ) : (
           <button className="typing-login-btn" onClick={() => window.location.href = '/'}>🔑 登录</button>
@@ -445,7 +445,8 @@ function TypingHome() {
             setShowTestRank(null);
             setTestRanking([]);
             setTestMyResult(null);
-            navigate(`/typing/test/${showTestRank.id}`);
+            // 弹出测试码输入框，而不是直接跳过
+            setShowTestCode(showTestRank);
           }}
         />
       )}
@@ -548,16 +549,31 @@ function TestRankModal({ test, ranking, myResult, onClose, onRetry }) {
   const rankingData = allData.data || [];
   const totalPages = Math.ceil(allData.total / pageSize);
 
-  // 计算当前学生在排名中的位置（注意翻页后可能不在当前页）
-  const userRankIdx = myResult ? rankingData.findIndex(r => r.student_name === myResult.student_name) : -1;
-  const userRank = userRankIdx >= 0 ? (page - 1) * pageSize + userRankIdx + 1 : -1;
+  // 排名：优先从 myResult.rank 获取，如果没有则前端兜底请求全部排名
+  const [userRank, setUserRank] = React.useState(-1);
+  const rankFetched = React.useRef(false);
+  React.useEffect(() => {
+    if (myResult && myResult.rank != null) {
+      setUserRank(Number(myResult.rank));
+    } else if (myResult && test && allData.total > 0 && !rankFetched.current) {
+      rankFetched.current = true;
+      // 兜底：请求全部排名数据来查找用户排名
+      api(`/tests/${test.id}/ranking?page=1&pageSize=${allData.total}`)
+        .then(r => {
+          const list = r.data || r;
+          const idx = list.findIndex(item => item.student_name === myResult.student_name);
+          setUserRank(idx >= 0 ? idx + 1 : -1);
+        })
+        .catch(() => setUserRank(-1));
+    }
+  }, [myResult, test, allData.total]);
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 'min(95vw, 800px)' }} onClick={e => e.stopPropagation()}>
         <h2>🏆 {test.title}</h2>
         <p style={{ color: '#636e72', marginBottom: 12, fontSize: '0.9em' }}>
-          📄 {test.article_title} · ⏱ {Math.floor(test.duration / 60)}分{test.duration % 60}秒 · 共 {allData.total} 人
+          ⏱ {Math.floor(test.duration / 60)}分{test.duration % 60}秒 · 共 {allData.total} 人
         </p>
         {myResult && (
           <div className="my-result-card" style={{
@@ -575,7 +591,7 @@ function TestRankModal({ test, ranking, myResult, onClose, onRetry }) {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>
-                {userRank > 0 ? `#${userRank}` : '-'}
+                {userRank > 0 ? `#${userRank}` : myResult ? '...' : '-'}
               </div>
               <div style={{ fontSize: '0.8em', opacity: 0.9 }}>排名</div>
             </div>
@@ -627,7 +643,11 @@ function TestRankModal({ test, ranking, myResult, onClose, onRetry }) {
           <div className="empty-state">暂无排名数据</div>
         )}
         <div style={{ marginTop: 15, display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary" onClick={onRetry}>🔄 重新测试</button>
+          {myResult ? (
+            <button className="btn btn-primary" onClick={onRetry}>🔄 重新测试</button>
+          ) : (
+            <span style={{ color: '#636e72', fontSize: '0.85em', alignSelf: 'center' }}>你还没有完成此测试</span>
+          )}
           <button className="btn btn-secondary" onClick={onClose}>关闭</button>
         </div>
       </div>
@@ -662,9 +682,24 @@ function PracticeRankModal({ article, ranking, myResult, onClose, onStart }) {
   const rankingData = allData.data || [];
   const totalPages = Math.ceil(allData.total / pageSize);
 
-  // 计算当前学生的排名
-  const userRankIdx = myResult ? rankingData.findIndex(r => r.student_name === myResult.student_name) : -1;
-  const userRank = userRankIdx >= 0 ? (page - 1) * pageSize + userRankIdx + 1 : -1;
+  // 排名：优先从 myResult.rank 获取，如果没有则前端兜底请求全部排名
+  const [userRank, setUserRank] = React.useState(-1);
+  const rankFetched = React.useRef(false);
+  React.useEffect(() => {
+    if (myResult && myResult.rank != null) {
+      setUserRank(Number(myResult.rank));
+    } else if (myResult && article && allData.total > 0 && !rankFetched.current) {
+      rankFetched.current = true;
+      // 兜底：请求全部排名数据来查找用户排名
+      api(`/articles/${article.id}/ranking?page=1&pageSize=${allData.total}`)
+        .then(r => {
+          const list = r.data || r;
+          const idx = list.findIndex(item => item.student_name === myResult.student_name);
+          setUserRank(idx >= 0 ? idx + 1 : -1);
+        })
+        .catch(() => setUserRank(-1));
+    }
+  }, [myResult, article, allData.total]);
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -689,7 +724,7 @@ function PracticeRankModal({ article, ranking, myResult, onClose, onStart }) {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>
-                {userRank > 0 ? `#${userRank}` : '-'}
+                {userRank > 0 ? `#${userRank}` : myResult ? '...' : '-'}
               </div>
               <div style={{ fontSize: '0.8em', opacity: 0.9 }}>排名</div>
             </div>
@@ -770,6 +805,7 @@ function TypingEditor() {
   const [errors, setErrors] = useState(new Set());
   const [wrongChars, setWrongChars] = useState({}); // { displayIdx: '用户输入的错误字符' }
   const [composingText, setComposingText] = useState(''); // IME组合中的拼音预览
+  const [shakeIndex, setShakeIndex] = useState(-1); // 触发抖动动画的字符索引
   const [focused, setFocused] = useState(false);
 
   const startTimeRef = React.useRef(null);
@@ -781,6 +817,7 @@ function TypingEditor() {
   const startedRef = React.useRef(false);
   const articleRef = React.useRef(null);
   const userScrolledRef = React.useRef(false);
+  const errorsRef = React.useRef(new Set());
   const savedScrollYRef = React.useRef(0);
 
   useEffect(() => {
@@ -809,6 +846,14 @@ function TypingEditor() {
   // 同步 ref
   useEffect(() => { finishedRef.current = finished; }, [finished]);
   useEffect(() => { startedRef.current = started; }, [started]);
+  useEffect(() => { errorsRef.current = errors; }, [errors]);
+
+  // 抖动动画：短暂显示后清除
+  useEffect(() => {
+    if (shakeIndex < 0) return;
+    const timer = setTimeout(() => setShakeIndex(-1), 400);
+    return () => clearTimeout(timer);
+  }, [shakeIndex]);
 
   // 计时器
   useEffect(() => {
@@ -841,10 +886,29 @@ function TypingEditor() {
 
     if (!articleRef.current) return;
     const typableLen = getTypableLength(articleRef.current.content);
+    const typableContent = getTypableContent(articleRef.current.content);
 
     // 如果已经输入到最后一个字，不再追加新内容到打字框
     if (inputRef.current.length >= typableLen) {
       return;
+    }
+
+    // 当前要输入的位置
+    const curIdx = inputRef.current.length;
+
+    // 如果前一个字符是错误的，当前字符必须输入正确才能继续
+    if (curIdx > 0 && errorsRef.current.has(curIdx - 1)) {
+      // 检查当前输入的字符是否与正确字符匹配
+      const expectedChar = typableContent[curIdx];
+      // 逐个字符检查（支持一次输入多个字符的情况，如IME）
+      for (let i = 0; i < text.length; i++) {
+        const checkIdx = curIdx + i;
+        if (checkIdx >= typableLen) break;
+        if (text[i] !== typableContent[checkIdx]) {
+          // 有字符不匹配，阻止全部输入
+          return;
+        }
+      }
     }
 
     if (!startedRef.current) {
@@ -865,7 +929,6 @@ function TypingEditor() {
 
     // 检查是否全部正确完成
     if (newInput.length >= typableLen) {
-      const typableContent = getTypableContent(articleRef.current.content);
       let allCorrect = true;
       for (let i = 0; i < typableContent.length; i++) {
         if (newInput[i] !== typableContent[i]) {
@@ -887,11 +950,16 @@ function TypingEditor() {
     let correct = 0;
     const newErrors = new Set();
     const newWrongChars = {};
+    let newErrorIdx = -1;
     for (let i = 0; i < currentInput.length; i++) {
       if (i < typableContent.length && currentInput[i] === typableContent[i]) {
         correct++;
       } else {
         newErrors.add(i);
+        // 检测新产生的错误位置（之前没有错误的，取第一个）
+        if (newErrorIdx < 0 && !errorsRef.current.has(i)) {
+          newErrorIdx = i;
+        }
         // 记录用户输入的错误字符
         if (i < currentInput.length) {
           newWrongChars[i] = currentInput[i];
@@ -905,6 +973,12 @@ function TypingEditor() {
     setErrors(newErrors);
     setWrongChars(newWrongChars);
     setCharIndex(currentInput.length);
+    // 同步更新 errorsRef，确保下次比较时是最新的
+    errorsRef.current = newErrors;
+    // 触发新错误字符的抖动动画
+    if (newErrorIdx >= 0) {
+      setShakeIndex(newErrorIdx);
+    }
   });
 
   // 使用隐藏input + input事件来处理所有输入（包括中文IME）
@@ -1065,6 +1139,10 @@ function TypingEditor() {
         cls = errors.has(displayIdx) ? 'char incorrect' : 'char correct';
       } else if (displayIdx === charIndex) {
         cls = 'char current';
+      }
+      // 抖动动画
+      if (displayIdx === shakeIndex) {
+        cls += ' char-shake';
       }
       const isSpace = char === ' ';
       if (isSpace) {

@@ -9,5 +9,16 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3001'
     }
+  },
+  build: {
+    // 生产构建使用相对路径，方便 Express 托管
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          pinyin: ['pinyin'],
+        }
+      }
+    }
   }
 });
