@@ -1999,6 +1999,7 @@ function StudentManager() {
   const [saving, setSaving] = useState(false);
   const [editSchools, setEditSchools] = useState([]);
   const [editClasses, setEditClasses] = useState([]);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     adminApi('/admin/schools').then(setSchools).catch(() => {});
@@ -2067,9 +2068,32 @@ function StudentManager() {
     load();
   };
 
+  const syncDingtalk = async () => {
+    if (!confirm('从钉钉家校通讯录拉取学校/班级/学生并写入后台？已存在的不会重复添加。')) return;
+    setSyncing(true);
+    try {
+      const r = await adminApi('/admin/sync/dingtalk', { method: 'POST' });
+      alert(`同步完成：扫描 ${r.classCount} 个班级，新增学校 ${r.schools} 个、班级 ${r.classes} 个、学生 ${r.students} 名。`);
+      load();
+      adminApi('/admin/schools').then(setSchools).catch(() => {});
+      adminApi('/admin/classes').then(setAllClasses).catch(() => {});
+    } catch (e) {
+      alert('同步失败：' + e.message);
+    }
+    setSyncing(false);
+  };
+
   return (
     <div>
       <h3>👦 学生管理</h3>
+      <div style={{ marginBottom: 12 }}>
+        <button className="btn btn-primary btn-small" onClick={syncDingtalk} disabled={syncing}>
+          {syncing ? '⏳ 同步中...' : '🔄 从钉钉同步通讯录'}
+        </button>
+        <span style={{ marginLeft: 10, fontSize: '0.85em', color: '#888' }}>
+          从钉钉家校通讯录拉取学校、班级、学生（按名称去重，不覆盖已有数据）
+        </span>
+      </div>
       <div className="admin-form">
         <select value={schoolId} onChange={e => setSchoolId(e.target.value)}>
           <option value="">选择学校</option>

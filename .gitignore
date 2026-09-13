@@ -2,3 +2,9 @@ node_modules/
 dist/
 .env
 *.db
+
+# 运行时日志
+*.log
+
+# 数据库导出查看器（含学生真实姓名等隐私数据，不入库）
+db_viewer.html

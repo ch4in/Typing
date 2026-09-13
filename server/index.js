@@ -3,6 +3,7 @@ const cors = require('cors');
 const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
+const { fetchClasses, fetchStudentsInClass } = require('./dingtalk');
 
 const app = express();
 const PORT = 3001;
@@ -932,6 +933,52 @@ async function start() {
     }
     saveDB(sqlDb);
     res.json({ count });
+  });
+
+  // 从钉钉家校通讯录拉取（学校/班级/学生）并写入后台，按名称幂等去重
+  app.post('/api/admin/sync/dingtalk', adminMiddleware, async (req, res) => {
+    try {
+      const classes = await fetchClasses();
+      if (!classes.length) {
+        return res.status(400).json({
+          error: '未从钉钉获取到任何班级。请检查：1) 应用已开通「通讯录部门信息读权限」；2) 应用「可见范围」包含家校通讯录部门；3) 钉钉家校通讯录中确实存在班级。'
+        });
+      }
+
+      let newSchools = 0, newClasses = 0, newStudents = 0;
+
+      for (const c of classes) {
+        // 学校
+        let school = db.prepare('SELECT * FROM schools WHERE name = ?').get(c.schoolName);
+        if (!school) {
+          db.prepare('INSERT INTO schools (name) VALUES (?)').run(c.schoolName);
+          school = db.prepare('SELECT * FROM schools WHERE name = ?').get(c.schoolName);
+          newSchools++;
+        }
+        // 班级
+        let cls = db.prepare('SELECT * FROM classes WHERE school_id = ? AND name = ?').get(school.id, c.className);
+        if (!cls) {
+          db.prepare('INSERT INTO classes (school_id, name) VALUES (?, ?)').run(school.id, c.className);
+          cls = db.prepare('SELECT * FROM classes WHERE school_id = ? AND name = ?').get(school.id, c.className);
+          newClasses++;
+        }
+        // 学生
+        const students = await fetchStudentsInClass(c.classId);
+        for (const st of students) {
+          const exist = db.prepare('SELECT id FROM students WHERE school_id = ? AND class_id = ? AND name = ?').get(school.id, cls.id, st.name);
+          if (!exist) {
+            db.prepare('INSERT INTO students (school_id, class_id, name) VALUES (?, ?, ?)').run(school.id, cls.id, st.name);
+            newStudents++;
+          }
+        }
+      }
+
+      saveDB(sqlDb);
+      res.json({ success: true, classCount: classes.length, schools: newSchools, classes: newClasses, students: newStudents });
+    } catch (e) {
+      saveDB(sqlDb);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // 托管前端构建产物（生产模式）
