@@ -1,6 +1,10 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import pinyin from 'pinyin';
+import VibeStudio from './vibe/VibeStudio';
+import PythonIdle from './python/PythonIdle';
+import { vibeAdminApi } from './vibe/api';
+import { BRAND } from './brand';
 
 // ==================== 工具函数 ====================
 function formatTime(s) {
@@ -176,12 +180,20 @@ function LoginModal({ onClose, onSuccess }) {
 // ==================== 首页导航 ====================
 function HomePage() {
   const [cards, setCards] = useState([]);
+  const [vibeOn, setVibeOn] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     api('/cards').then(setCards).catch(() => {});
+  }, []);
+
+  // AI 编程的总开关由老师在后台控制，关了就先不显示这张卡片
+  useEffect(() => {
+    api('/vibe/enabled')
+      .then((d) => setVibeOn(d && d.enabled !== false))
+      .catch(() => setVibeOn(true));
   }, []);
 
   const handleCardClick = (card) => {
@@ -195,6 +207,10 @@ function HomePage() {
       window.open(card.link, '_blank');
     }
   };
+
+  const visibleCards = cards.filter((card) => (
+    vibeOn || (String(card.local_path || '') !== '/vibe' && String(card.link || '') !== '/vibe')
+  ));
 
   return (
     <div className="home-page">
@@ -216,12 +232,12 @@ function HomePage() {
         <div className="decorations">
           <span>🌟</span><span>📚</span><span>🎨</span><span>🚀</span><span>💡</span>
         </div>
-        <h1>学习导航</h1>
-        <p className="subtitle">选择一个卡片，开启你的学习之旅吧！</p>
+        <h1>{BRAND.emoji} {BRAND.name}</h1>
+        <p className="subtitle">{BRAND.slogan} · 选择一张卡片，开启今天的学习之旅吧！</p>
       </div>
 
       <div className="card-grid">
-        {cards.map((card) => (
+        {visibleCards.map((card) => (
           <div
             key={card.id}
             className="nav-card"
@@ -1360,7 +1376,6 @@ function TypingEditor() {
       {/* 隐藏的输入框定位到当前字符旁边，让输入法候选框显示在正确位置 */}
       {/* 使用 clip 裁剪而非 opacity:0，因为 opacity:0 会导致某些浏览器的IME候选窗不显示 */}
       <input
-        ref={hiddenInputRef}
         type="text"
         className="hidden-typing-input"
         autoComplete="off"
@@ -1561,11 +1576,72 @@ function ResultModal({ results, isTest, ranking, myResult, onClose, onRetry, onB
 }
 
 // ==================== 教师后台 ====================
+// 后台菜单分两级（一级分组 + 二级页面），「工具类 → AI 编程」下面还有第三级
+const ADMIN_MENU = [
+  {
+    key: 'nav', icon: '🧭', label: '导航',
+    items: [
+      { key: 'cards', label: '📇 导航卡片' },
+    ],
+  },
+  {
+    key: 'people', icon: '👥', label: '人员',
+    items: [
+      { key: 'schools', label: '🏫 学校' },
+      { key: 'classes', label: '📚 班级' },
+      { key: 'students', label: '👦 学生' },
+    ],
+  },
+  {
+    key: 'typing', icon: '⌨️', label: '打字',
+    items: [
+      { key: 'articles', label: '📄 文章' },
+      { key: 'practices', label: '📊 练习数据' },
+      { key: 'tests', label: '📋 测试' },
+    ],
+  },
+  {
+    key: 'tools', icon: '🧰', label: '工具类',
+    items: [
+      {
+        key: 'vibe', label: '🤖 AI 编程',
+        children: [
+          { key: 'settings', label: '⚙️ AI 编程设置' },
+          { key: 'chats', label: '💬 学生对话查看' },
+        ],
+      },
+      { key: 'python', label: '🐍 Python 编程' },
+    ],
+  },
+];
+
+// 点某个一级分组时，默认落在它第一个页面上
+function firstTabOf(group) {
+  const first = group.items[0];
+  return first.children ? `${first.key}.${first.children[0].key}` : first.key;
+}
+
+function PythonAdminPlaceholder() {
+  return (
+    <div>
+      <h3>🐍 Python 编程</h3>
+      <p style={{ color: '#636e72', fontSize: '0.9em', lineHeight: 1.8 }}>
+        这块地方先留着。等你想清楚要管什么（比如课堂练习题、示例程序、学生代码记录……），
+        再把对应的管理功能放进来就好 🙂
+      </p>
+    </div>
+  );
+}
+
 function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(!!getAdminToken());
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [group, setGroup] = useState('nav');
   const [tab, setTab] = useState('cards');
+
+  const currentGroup = ADMIN_MENU.find((g) => g.key === group) || ADMIN_MENU[0];
+  const activeItem = currentGroup.items.find((it) => tab === it.key || tab.startsWith(it.key + '.'));
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -1615,13 +1691,49 @@ function AdminPage() {
         </button>
       </div>
 
+      {/* 一级：分组 */}
       <div className="admin-tabs">
-        {['cards', 'schools', 'classes', 'students', 'articles', 'practices', 'tests'].map(t => (
-          <button key={t} className={`admin-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-            {{ cards: '📇 导航卡片', schools: '🏫 学校', classes: '📚 班级', students: '👦 学生', articles: '📄 文章', practices: '📊 练习数据', tests: '📋 测试' }[t]}
+        {ADMIN_MENU.map(g => (
+          <button
+            key={g.key}
+            className={`admin-tab ${group === g.key ? 'active' : ''}`}
+            onClick={() => {
+              setGroup(g.key);
+              setTab(firstTabOf(g));
+            }}
+          >
+            {g.icon} {g.label}
           </button>
         ))}
       </div>
+
+      {/* 二级：这个分组里的页面 */}
+      <div className="admin-tabs sub">
+        {currentGroup.items.map(it => (
+          <button
+            key={it.key}
+            className={`admin-tab ${(tab === it.key || tab.startsWith(it.key + '.')) ? 'active' : ''}`}
+            onClick={() => setTab(it.children ? `${it.key}.${it.children[0].key}` : it.key)}
+          >
+            {it.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 三级：只有 AI 编程这种有两个子页面的才有 */}
+      {activeItem && activeItem.children && (
+        <div className="admin-tabs third">
+          {activeItem.children.map(ch => (
+            <button
+              key={ch.key}
+              className={`admin-tab ${tab === `${activeItem.key}.${ch.key}` ? 'active' : ''}`}
+              onClick={() => setTab(`${activeItem.key}.${ch.key}`)}
+            >
+              {ch.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="admin-section">
         {tab === 'cards' && <CardManager />}
@@ -1631,7 +1743,417 @@ function AdminPage() {
         {tab === 'articles' && <ArticleManager />}
         {tab === 'practices' && <PracticeDataManager />}
         {tab === 'tests' && <TestManager />}
+        {(tab === 'vibe' || tab === 'vibe.settings') && <VibeSettingsManager />}
+        {tab === 'vibe.chats' && <VibeChatManager />}
+        {tab === 'python' && <PythonAdminPlaceholder />}
       </div>
+    </div>
+  );
+}
+
+// ==================== AI 编程（Vibe）设置 ====================
+function VibeSettingsManager() {
+  const [form, setForm] = useState(null);
+  const [models, setModels] = useState([]);
+  const [keyInfo, setKeyInfo] = useState({ hasKey: false, keyMasked: '' });
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = () => Promise.all([vibeAdminApi.getSettings(), vibeAdminApi.models()])
+    .then(([st, ms]) => {
+      setForm({
+        apiKey: '',
+        enabled: st.enabled !== false,
+        model: st.model,
+        mode: st.mode,
+        temperature: st.temperature,
+        workspace: st.workspace,
+        saveTarget: st.saveTarget || 'server',
+        worksFolder: st.worksFolder || 'AI编程作品',
+        kidPrompt: st.kidPrompt,
+        systemPrompt: st.systemPrompt,
+      });
+      setKeyInfo({ hasKey: st.hasKey, keyMasked: st.keyMasked });
+      setModels(ms);
+      setErr('');
+    })
+    .catch((e) => setErr('❌ ' + e.message + '（请确认服务端已重启）'));
+
+  useEffect(() => { load(); }, []);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const save = async () => {
+    setBusy(true);
+    setMsg('');
+    try {
+      const patch = { ...form };
+      // 没改动就不回传空 key
+      if (!patch.apiKey) delete patch.apiKey;
+      await vibeAdminApi.saveSettings(patch);
+      await load();
+      setMsg('✅ 已保存，学生端立刻生效');
+      setTimeout(() => setMsg((cur) => (cur.startsWith('✅') ? '' : cur)), 3000);
+    } catch (e) {
+      setMsg('❌ ' + e.message);
+    }
+    setBusy(false);
+  };
+
+  const grouped = models.reduce((acc, m) => {
+    (acc[m.tier] = acc[m.tier] || []).push(m);
+    return acc;
+  }, {});
+  const promptKey = form && form.mode === 'kid' ? 'kidPrompt' : 'systemPrompt';
+
+  // 一键开关 AI 编程：关了之后学生首页看不到入口，也没法直接输网址进来
+  const toggleEnabled = async () => {
+    const next = !(form.enabled !== false);
+    setBusy(true);
+    setMsg('');
+    try {
+      await vibeAdminApi.saveSettings({ enabled: next });
+      setForm((f) => ({ ...f, enabled: next }));
+      setMsg(next ? '✅ 已开放 AI 编程，学生端立刻生效' : '✅ 已关闭 AI 编程，学生首页的入口先藏起来了');
+      setTimeout(() => setMsg((cur) => (cur.startsWith('✅') ? '' : cur)), 3000);
+    } catch (e) {
+      setMsg('❌ ' + e.message);
+    }
+    setBusy(false);
+  };
+
+  if (!form) {
+    return (
+      <div>
+        <h3>🤖 AI 编程设置</h3>
+        <div className={err ? 'error-msg' : ''} style={{ color: err ? undefined : '#636e72' }}>{err || '加载中…'}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h3>🤖 AI 编程设置</h3>
+      <p style={{ color: '#636e72', fontSize: '0.9em', marginBottom: 16 }}>
+        这里的配置只有老师能看到和修改，学生界面上不会出现。学生做的作品会存到下面这个文件夹的 works 目录里。
+      </p>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 14px',
+        marginBottom: 18,
+        borderRadius: 12,
+        background: form.enabled === false ? '#fdecea' : '#eafaf1',
+        border: `1px solid ${form.enabled === false ? '#f8cfc7' : '#c8f0dc'}`,
+        flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: '1.2em' }}>{form.enabled === false ? '🔴' : '🟢'}</span>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <b>AI 编程总开关</b>
+          <div style={{ fontSize: '0.85em', color: '#636e72', marginTop: 2 }}>
+            {form.enabled === false
+              ? '现在是关闭状态：学生首页看不到 AI 编程入口，直接输网址也进不去。'
+              : '现在是开放状态：学生可以在首页打开 AI 编程和小助手聊天、做作品。'}
+          </div>
+        </div>
+        <button
+          className={`btn ${form.enabled === false ? 'btn-primary' : 'btn-secondary'} btn-small`}
+          onClick={toggleEnabled}
+          disabled={busy}
+        >
+          {form.enabled === false ? '🔓 开放 AI 编程' : '🔒 关闭 AI 编程'}
+        </button>
+      </div>
+
+      <div className="form-group">
+        <label>阿里云百炼 API Key<span style={{ fontWeight: 400, color: '#b2bec3' }}>（留空表示不修改）</span></label>
+        <input
+          type="password"
+          placeholder={keyInfo.hasKey ? `已保存（${keyInfo.keyMasked}）` : '还没配置，请填 sk- 开头的密钥'}
+          value={form.apiKey}
+          onChange={(e) => set('apiKey', e.target.value)}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>对话对象</label>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', padding: '6px 2px' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontWeight: 400 }}>
+            <input type="radio" name="vibe-mode" checked={form.mode === 'kid'} onChange={() => set('mode', 'kid')} />
+            🧒 小学生模式（先问他想用什么语言做，再给一个能直接运行的完整作品）
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontWeight: 400 }}>
+            <input type="radio" name="vibe-mode" checked={form.mode === 'pro'} onChange={() => set('mode', 'pro')} />
+            🧑‍💻 标准模式（多文件、按路径写入）
+          </label>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>模型<span style={{ fontWeight: 400, color: '#b2bec3' }}>（你有免费额度的那些，快到期的排前面）</span></label>
+        <select value={form.model} onChange={(e) => set('model', e.target.value)}>
+          {['旗舰', '均衡', '快速'].map((tier) => (
+            <optgroup key={tier} label={tier}>
+              {(grouped[tier] || []).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}（{m.vendor} · {m.expire}到期 · {m.desc}）
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label>作品保存位置<span style={{ fontWeight: 400, color: '#b2bec3' }}>（学生作品统一放在这个文件夹里）</span></label>
+        <input value={form.workspace} onChange={(e) => set('workspace', e.target.value)} />
+      </div>
+
+      <div className="form-group">
+        <label>
+          学生的作品具体存到哪
+          <span style={{ fontWeight: 400, color: '#b2bec3' }}>
+            （结构固定为「{form.worksFolder || 'AI编程作品'}/会话名字/作品文件」，重名会自动加 -2，不会覆盖）
+          </span>
+        </label>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontWeight: 400, marginBottom: 8 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+            <input
+              type="radio"
+              name="saveTarget"
+              checked={(form.saveTarget || 'server') === 'server'}
+              onChange={() => set('saveTarget', 'server')}
+            />
+            作品区里按学生分目录（全班共用一台电脑时选这个，每人只看得到自己的）
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+            <input
+              type="radio"
+              name="saveTarget"
+              checked={form.saveTarget === 'desktop'}
+              onChange={() => set('saveTarget', 'desktop')}
+            />
+            直接存到这台电脑的桌面（只有学生是在自己电脑上用时才对）
+          </label>
+        </div>
+        <input
+          value={form.worksFolder}
+          onChange={(e) => set('worksFolder', e.target.value)}
+          placeholder="AI编程作品"
+        />
+        <p style={{ fontSize: '0.82em', color: '#b2bec3', margin: '6px 0 0' }}>
+          ⚠️ 学生在自己电脑的浏览器上使用、而程序装在这台电脑上时，网页拿不到学生电脑的桌面，
+          作品会存在这里。学生可以点作品旁边的「⬇️ 下载」把文件拿到自己电脑上。
+        </p>
+      </div>
+
+      <div className="form-group">
+        <label>温度<span style={{ fontWeight: 400, color: '#b2bec3' }}>（越小越听话，越大越有创意，当前 {form.temperature}）</span></label>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.1"
+          value={form.temperature}
+          onChange={(e) => set('temperature', Number(e.target.value))}
+          style={{ width: '100%', border: 'none', padding: 0 }}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>{form.mode === 'kid' ? '小学生模式提示词' : '标准模式提示词'}</label>
+        <textarea rows={10} value={form[promptKey]} onChange={(e) => set(promptKey, e.target.value)} />
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button className="btn btn-primary btn-small" onClick={save} disabled={busy}>
+          {busy ? '保存中…' : '💾 保存设置'}
+        </button>
+        {msg && <span style={{ fontSize: '0.9em', color: msg.startsWith('✅') ? '#27ae60' : '#e74c3c' }}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ==================== 查看学生的 AI 对话（教师）====================
+// 把回答里的 ```代码块 和 普通文字 分开显示，看起来舒服一点
+function splitChatBlocks(text) {
+  const parts = [];
+  const re = /```([^\n]*)\n?([\s\S]*?)```/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(String(text || ''))) !== null) {
+    if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
+    parts.push({ type: 'code', lang: m[1], value: m[2] });
+    last = re.lastIndex;
+  }
+  if (last < String(text || '').length) parts.push({ type: 'text', value: text.slice(last) });
+  return parts;
+}
+
+function ChatBubble({ msg }) {
+  const isUser = msg.role === 'user';
+  return (
+    <div style={{
+      margin: '0 0 14px',
+      padding: '10px 12px',
+      borderRadius: 10,
+      background: isUser ? '#eef4ff' : '#f7f7fa',
+      border: '1px solid #e6e8f0',
+    }}>
+      <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>
+        {isUser ? '🧒 学生' : '🤖 小助手'}
+        {msg.ts ? ` · ${new Date(msg.ts).toLocaleString('zh-CN')}` : ''}
+      </div>
+      {splitChatBlocks(msg.content).map((b, i) => (
+        b.type === 'code' ? (
+          <pre key={i} style={{
+            margin: '6px 0', padding: 10, background: '#fff', border: '1px solid #e3e6ef',
+            borderRadius: 8, fontSize: 12, lineHeight: 1.5, overflowX: 'auto', whiteSpace: 'pre-wrap',
+          }}>
+            <div style={{ color: '#999', marginBottom: 4 }}>{b.lang || '代码'}</div>
+            {b.value.replace(/\s+$/, '')}
+          </pre>
+        ) : (
+          <div key={i} style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.7 }}>
+            {b.value}
+          </div>
+        )
+      ))}
+    </div>
+  );
+}
+
+function VibeChatManager() {
+  const [schools, setSchools] = useState([]);
+  const [allClasses, setAllClasses] = useState([]);
+  const [schoolId, setSchoolId] = useState('');
+  const [classId, setClassId] = useState('');
+  const [q, setQ] = useState('');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [detail, setDetail] = useState(null);
+
+  useEffect(() => {
+    adminApi('/admin/schools').then(setSchools).catch(() => {});
+    adminApi('/admin/classes').then(setAllClasses).catch(() => {});
+  }, []);
+
+  const load = (keyword) => {
+    setLoading(true);
+    vibeAdminApi.sessions({ school_id: schoolId, class_id: classId, q: keyword === undefined ? q : keyword })
+      .then((d) => { setItems(Array.isArray(d) ? d : []); setErr(''); })
+      .catch((e) => setErr('❌ ' + e.message + '（请确认服务端已重启）'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [schoolId, classId]);
+
+  const openDetail = (id) => {
+    setDetail({ loading: true, messages: [] });
+    vibeAdminApi.session(id)
+      .then((d) => setDetail(d))
+      .catch((e) => { setDetail(null); alert('打开失败：' + e.message); });
+  };
+
+  const classes = schoolId
+    ? allClasses.filter((c) => String(c.school_id) === String(schoolId))
+    : allClasses;
+
+  return (
+    <div>
+      <h3>💬 学生的 AI 对话</h3>
+      <p style={{ fontSize: '0.85em', color: '#888', marginTop: 0 }}>
+        按学校、班级筛选，或输入学生姓名 / 对话标题搜索，点「查看」看完整聊天记录。
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <select value={schoolId} onChange={(e) => { setSchoolId(e.target.value); setClassId(''); }} style={{ width: 150 }}>
+          <option value="">全部学校</option>
+          {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <select value={classId} onChange={(e) => setClassId(e.target.value)} style={{ width: 150 }}>
+          <option value="">全部班级</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') load(q); }}
+          placeholder="学生姓名或对话标题"
+          style={{ width: 200 }}
+        />
+        <button className="btn btn-primary btn-small" onClick={() => load(q)}>🔍 搜索</button>
+        <button className="btn btn-secondary btn-small" onClick={() => { setQ(''); setSchoolId(''); setClassId(''); load(''); }}>重置</button>
+        <button className="btn btn-secondary btn-small" onClick={() => load(q)} disabled={loading}>
+          {loading ? '⏳ 加载中…' : '🔄 刷新'}
+        </button>
+        <span style={{ fontSize: '0.85em', color: '#888' }}>共 {items.length} 条对话</span>
+      </div>
+
+      {err && <div className="error-msg">{err}</div>}
+
+      {items.length === 0 && !loading && !err && (
+        <p style={{ color: '#888' }}>这个范围内还没有学生用过 AI 对话。</p>
+      )}
+
+      {items.length > 0 && (
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>学生</th>
+              <th>班级</th>
+              <th>对话</th>
+              <th>消息</th>
+              <th>最近活动</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((s) => (
+              <tr key={s.id}>
+                <td>{s.studentName}</td>
+                <td>{s.className || '—'}</td>
+                <td>{s.name}</td>
+                <td>{s.messageCount}</td>
+                <td>{s.updatedAt ? new Date(s.updatedAt).toLocaleString('zh-CN') : '—'}</td>
+                <td>
+                  <button className="btn btn-secondary btn-small" onClick={() => openDetail(s.id)}>👀 查看</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {detail && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDetail(null)}>
+          <div className="modal" style={{ maxWidth: 760, width: '92%', maxHeight: '82vh', overflow: 'auto' }}>
+            {detail.loading ? (
+              <p>正在打开对话…</p>
+            ) : (
+              <>
+                <h2 style={{ marginTop: 0 }}>💬 {detail.name}</h2>
+                <p style={{ color: '#888', fontSize: '0.85em', marginTop: 0 }}>
+                  {detail.studentName}
+                  {detail.className ? ` · ${detail.className}` : ''}
+                  {detail.schoolName ? ` · ${detail.schoolName}` : ''}
+                  {detail.updatedAt ? ` · 最近活动 ${new Date(detail.updatedAt).toLocaleString('zh-CN')}` : ''}
+                </p>
+                {(detail.messages || []).length === 0 && <p style={{ color: '#888' }}>这个对话还没有内容。</p>}
+                {(detail.messages || []).map((m, i) => <ChatBubble key={i} msg={m} />)}
+              </>
+            )}
+            <div className="edit-modal-actions">
+              <button className="btn btn-secondary" onClick={() => setDetail(null)}>关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2000,6 +2522,7 @@ function StudentManager() {
   const [editSchools, setEditSchools] = useState([]);
   const [editClasses, setEditClasses] = useState([]);
   const [syncing, setSyncing] = useState(false);
+  const [promoting, setPromoting] = useState(false);
 
   useEffect(() => {
     adminApi('/admin/schools').then(setSchools).catch(() => {});
@@ -2069,11 +2592,24 @@ function StudentManager() {
   };
 
   const syncDingtalk = async () => {
-    if (!confirm('从钉钉家校通讯录拉取学校/班级/学生并写入后台？已存在的不会重复添加。')) return;
+    if (!confirm(
+      '以钉钉家校通讯录为准进行对账同步？\n\n' +
+      '· 钉钉新增的学生 -> 加入平台\n' +
+      '· 两边都有的学生 -> 原样保留，历史成绩不受影响\n' +
+      '· 平台有、钉钉已没有的学生 -> 标记为「离校」（保留全部历史数据，仅禁止登录）'
+    )) return;
     setSyncing(true);
     try {
       const r = await adminApi('/admin/sync/dingtalk', { method: 'POST' });
-      alert(`同步完成：扫描 ${r.classCount} 个班级，新增学校 ${r.schools} 个、班级 ${r.classes} 个、学生 ${r.students} 名。`);
+      const lines = [
+        `扫描钉钉班级 ${r.classCount} 个（钉钉侧学生 ${r.remoteStudents} 名）`,
+        `新增：学校 ${r.schools} 个、班级 ${r.classes} 个、学生 ${r.students} 名`,
+      ];
+      if (r.moved) lines.push(`跟随钉钉转班 ${r.moved} 名`);
+      if (r.reactivated) lines.push(`恢复在校 ${r.reactivated} 名`);
+      if (r.archived) lines.push(`已归档班级保留不动 ${r.archived} 名`);
+      if (r.deactivated) lines.push(`标记离校 ${r.deactivated} 名（数据保留，仅禁止登录）`);
+      alert('同步完成：\n\n' + lines.join('\n'));
       load();
       adminApi('/admin/schools').then(setSchools).catch(() => {});
       adminApi('/admin/classes').then(setAllClasses).catch(() => {});
@@ -2083,15 +2619,56 @@ function StudentManager() {
     setSyncing(false);
   };
 
+  const promote = async () => {
+    const input = prompt('升班后，毕业年级将归档为「届别班」。请输入毕业年份：', String(new Date().getFullYear()));
+    if (input === null) return;
+    const y = String(input).trim();
+    if (!/^\d{4}$/.test(y)) { alert('毕业年份必须是 4 位数字，例如 2026'); return; }
+    if (!confirm(
+      `确认执行升班？\n\n` +
+      `· 一至五年级（初一初二）依次升一级：五年级1班 → 六年级1班\n` +
+      `· 六年级（初三）转为「${y}届N班」并归档：六年级1班 → ${y}届1班\n` +
+      `· 只改班级归属，学生及历史成绩全部保留\n` +
+      `· 归档班级不再出现在学生登录的班级列表中\n\n` +
+      `⚠️ 请先确认钉钉家校通讯录已完成新学年升班，否则之后的同步会被安全闸中止。`
+    )) return;
+    setPromoting(true);
+    try {
+      const r = await adminApi('/admin/promote', { method: 'POST', body: JSON.stringify({ year: Number(y) }) });
+      const lines = [`升班完成，毕业年份 ${r.year}：`, '', `升级班级 ${r.promoted.length} 个`];
+      if (r.promoted.length) lines.push(`  例：${r.promoted[0].from} → ${r.promoted[0].to}`);
+      if (r.graduated.length) {
+        lines.push(`毕业归档 ${r.graduated.length} 个`);
+        lines.push(`  例：${r.graduated[0].from} → ${r.graduated[0].to}`);
+      }
+      if (r.skipped.length) lines.push(`未识别、跳过 ${r.skipped.length} 个：${r.skipped.join('、')}`);
+      alert(lines.join('\n'));
+      load();
+      adminApi('/admin/classes').then(setAllClasses).catch(() => {});
+      if (confirm('升班完成。是否立即同步钉钉通讯录，让毕业 / 转学的学生自动标记为「离校」？')) {
+        await syncDingtalk();
+      }
+    } catch (e) {
+      alert('升班失败：' + e.message);
+    }
+    setPromoting(false);
+  };
+
   return (
     <div>
       <h3>👦 学生管理</h3>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <button className="btn btn-primary btn-small" onClick={syncDingtalk} disabled={syncing}>
           {syncing ? '⏳ 同步中...' : '🔄 从钉钉同步通讯录'}
         </button>
-        <span style={{ marginLeft: 10, fontSize: '0.85em', color: '#888' }}>
-          从钉钉家校通讯录拉取学校、班级、学生（按名称去重，不覆盖已有数据）
+        <span style={{ fontSize: '0.85em', color: '#888' }}>
+          以钉钉为准对账：新增、保留、转班，缺失的标记为离校
+        </span>
+        <button className="btn btn-secondary btn-small" onClick={promote} disabled={promoting} style={{ marginLeft: 8 }}>
+          {promoting ? '⏳ 升班中...' : '⬆️ 学年升班'}
+        </button>
+        <span style={{ fontSize: '0.85em', color: '#888' }}>
+          年级 +1，毕业班转为 xxxx届N班并归档，随后同步钉钉对齐
         </span>
       </div>
       <div className="admin-form">
@@ -2118,13 +2695,14 @@ function StudentManager() {
         </select>
       </div>
       <table className="admin-table">
-        <thead><tr><th>学校</th><th>班级</th><th>姓名</th><th>操作</th></tr></thead>
+        <thead><tr><th>学校</th><th>班级</th><th>姓名</th><th>状态</th><th>操作</th></tr></thead>
         <tbody>
           {items.map(s => (
             <tr key={s.id}>
               <td>{s.school_name}</td>
               <td>{s.class_name}</td>
               <td>{s.name}</td>
+              <td>{Number(s.active) === 0 ? <span style={{ color: '#c0392b' }}>离校</span> : <span style={{ color: '#27ae60' }}>在校</span>}</td>
               <td>
                 <button className="btn btn-secondary btn-small" style={{ marginRight: 4 }} onClick={() => startEdit(s)}>✏️ 编辑</button>
                 <button className="btn btn-danger btn-small" onClick={() => remove(s.id)}>删除</button>
@@ -2828,6 +3406,58 @@ function TestManager() {
   );
 }
 
+// ==================== 访问门槛 ====================
+// 有些本地应用要先登录才能用（比如 Python 编程要用到学生的作品空间）
+function RequireStudentLogin({ children, emoji, title, desc }) {
+  const { user } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+  const navigate = useNavigate();
+
+  if (user) return children;
+
+  return (
+    <div className="home-page">
+      <div className="modal" style={{ maxWidth: 430, margin: '10vh auto' }}>
+        <h2>{emoji || '🔒'} {title || '需要先登录才能使用哦'}</h2>
+        <p className="modal-subtitle">{desc}</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18, flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" onClick={() => setShowLogin(true)}>🔑 去登录</button>
+          <button className="btn btn-secondary" onClick={() => navigate('/')}>← 返回首页</button>
+        </div>
+      </div>
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+    </div>
+  );
+}
+
+// AI 编程的总开关：老师在后台关掉之后，就算直接输网址也进不去
+function RequireVibeEnabled({ children }) {
+  const [state, setState] = useState('loading');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    api('/vibe/enabled')
+      .then((d) => setState(d && d.enabled === false ? 'off' : 'on'))
+      .catch(() => setState('on'));
+  }, []);
+
+  if (state === 'loading') return null;
+  if (state === 'off') {
+    return (
+      <div className="home-page">
+        <div className="modal" style={{ maxWidth: 430, margin: '10vh auto' }}>
+          <h2>😴 AI 编程暂时关闭啦</h2>
+          <p className="modal-subtitle">老师把 AI 编程关掉了，等老师再次开放之后就能进来和小助手聊天啦～</p>
+          <div style={{ textAlign: 'center', marginTop: 18 }}>
+            <button className="btn btn-primary" onClick={() => navigate('/')}>← 返回首页</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return children;
+}
+
 // ==================== 主应用 ====================
 export default function App() {
   return (
@@ -2837,6 +3467,19 @@ export default function App() {
         <Route path="/typing" element={<TypingHome />} />
         <Route path="/typing/practice/:id" element={<TypingEditor />} />
         <Route path="/typing/test/:id" element={<TypingEditor />} />
+        <Route path="/vibe" element={<RequireVibeEnabled><VibeStudio /></RequireVibeEnabled>} />
+        <Route
+          path="/python"
+          element={(
+            <RequireStudentLogin
+              emoji="🐍"
+              title="Python 编程要先登录哦"
+              desc="登录后用这里的 ▶ 运行，遇到报错会有中文解释帮你改，写完还能把作品存到「我的作品」里。"
+            >
+              <PythonIdle />
+            </RequireStudentLogin>
+          )}
+        />
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </AuthProvider>

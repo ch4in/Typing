@@ -1,7 +1,7 @@
 {
-  "name": "typing-platform",
+  "name": "infotech-hub",
   "version": "1.0.0",
-  "description": "小学生打字练习平台",
+  "description": "信息科技学习平台：打字闯关 + AI 编程伙伴",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm run dev",

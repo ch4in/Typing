@@ -4,6 +4,7 @@ const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
 const { fetchClasses, fetchStudentsInClass } = require('./dingtalk');
+const { createVibeRouter, createAdminVibeRouter, ensureNavCard } = require('./vibe');
 
 const app = express();
 const PORT = 3001;
@@ -78,6 +79,53 @@ async function initDB() {
 function saveDB(sqlDb) {
   const data = sqlDb.export();
   fs.writeFileSync(DB_PATH, Buffer.from(data));
+}
+
+// 取表的所有列名（用于旧库结构升级）
+// 注意：不能用 "SELECT * FROM 表 LIMIT 0"，空结果集时 sql.js 返回空数组，
+// 会误判成"列不存在"从而在下面重复 ADD COLUMN，导致 duplicate column 崩溃。
+function tableColumns(sqlDb, table) {
+  const res = sqlDb.exec(`PRAGMA table_info(${table})`);
+  if (!res || !res.length) return [];
+  const nameIdx = res[0].columns.indexOf('name');
+  if (nameIdx < 0) return [];
+  return (res[0].values || []).map((row) => row[nameIdx]);
+}
+
+// 旧库补列（已存在则跳过）
+function ensureColumn(sqlDb, table, column, ddl) {
+  const cols = tableColumns(sqlDb, table);
+  if (cols.includes(column)) return;
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  } catch (e) {
+    // 列其实已经存在时不要中断启动（旧库版本差异很常见）
+    if (!/duplicate column name/i.test(String((e && e.message) || e))) throw e;
+  }
+}
+
+// 升班用的年级推进表
+const GRADE_NEXT = { '一': '二', '二': '三', '三': '四', '四': '五', '五': '六' };
+const MIDDLE_NEXT = { '一': '二', '二': '三' };
+
+// 班级名升一级；无法识别返回 null
+// 例：六年级1班 + 2026 -> { newName: '2026届1班', graduated: true }
+//     五年级3班 + 2026 -> { newName: '六年级3班', graduated: false }
+function promoteClassName(name, year) {
+  const s = String(name || '').trim();
+  let m = s.match(/^([一二三四五六])年级(.*)班$/);
+  if (m) {
+    const [_, g, rest] = m;
+    if (g === '六') return { newName: `${year}届${rest}班`, graduated: true };
+    return { newName: `${GRADE_NEXT[g]}年级${rest}班`, graduated: false };
+  }
+  m = s.match(/^初([一二三])(.*)班$/);
+  if (m) {
+    const [_, g, rest] = m;
+    if (g === '三') return { newName: `${year}届${rest}班`, graduated: true };
+    return { newName: `初${MIDDLE_NEXT[g]}${rest}班`, graduated: false };
+  }
+  return null;
 }
 
 async function start() {
@@ -178,6 +226,11 @@ async function start() {
     );
   `);
 
+  // 旧库结构升级：钉钉 userId、学生在校状态、班级启用状态
+  ensureColumn(sqlDb, 'students', 'dingtalk_userid', 'dingtalk_userid TEXT');
+  ensureColumn(sqlDb, 'students', 'active', 'active INTEGER DEFAULT 1');
+  ensureColumn(sqlDb, 'classes', 'active', 'active INTEGER DEFAULT 1');
+
   // 初始化默认数据
   const cardCount = db.prepare('SELECT COUNT(*) as count FROM nav_cards').get();
   if (cardCount.count === 0) {
@@ -191,6 +244,13 @@ async function start() {
     ];
     const ins = db.prepare('INSERT INTO nav_cards (title, description, icon, color, link, is_local, local_path, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     cards.forEach(c => ins.run(...c));
+  }
+
+  // 内置应用「Python 编程」：首页卡片里没有就补一张，已经有的（老师改过名字的）不动
+  const pyCardCount = db.prepare("SELECT COUNT(*) as count FROM nav_cards WHERE local_path = '/python'").get();
+  if (pyCardCount.count === 0) {
+    db.prepare("INSERT INTO nav_cards (title, description, icon, color, link, is_local, local_path, sort_order) VALUES (?, ?, ?, ?, NULL, 1, '/python', 1)")
+      .run('Python 编程', '浏览器里直接写 Python，报错还有中文解释', '🐍', '#45B7D1');
   }
 
   const articleCount = db.prepare('SELECT COUNT(*) as count FROM articles').get();
@@ -241,8 +301,9 @@ async function start() {
     res.json(schools);
   });
 
+  // 学生登录用的班级下拉：只返回启用中的班级（已毕业的 xxxx届N班不出现）
   app.get('/api/classes/:schoolId', (req, res) => {
-    const classes = db.prepare('SELECT * FROM classes WHERE school_id = ? ORDER BY id').all(Number(req.params.schoolId));
+    const classes = db.prepare('SELECT * FROM classes WHERE school_id = ? AND (active IS NULL OR active = 1) ORDER BY id').all(Number(req.params.schoolId));
     saveDB(sqlDb);
     res.json(classes);
   });
@@ -256,6 +317,10 @@ async function start() {
     if (!student) {
       saveDB(sqlDb);
       return res.status(401).json({ error: '未找到该学生信息，请检查学校、班级和姓名是否正确' });
+    }
+    if (Number(student.active) === 0) {
+      saveDB(sqlDb);
+      return res.status(401).json({ error: '该学生已离校或已毕业，无法登录，请联系老师' });
     }
     const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).substr(2);
     db.prepare('INSERT INTO login_sessions (student_id, token) VALUES (?, ?)').run(student.id, token);
@@ -298,6 +363,24 @@ async function start() {
       }
     }
     next();
+  }
+
+  // ==================== AI 编程模块（Vibe Coding）====================
+  try {
+    ensureNavCard(db);
+    app.use('/api/vibe', createVibeRouter({ db }));
+    saveDB(sqlDb);
+    console.log('🤖 AI 编程模块已挂载：/api/vibe');
+  } catch (e) {
+    console.error('AI 编程模块挂载失败:', e);
+  }
+
+  // AI 编程的教师后台设置（在教师管理后台里改，不暴露给学生）
+  try {
+    app.use('/api/admin/vibe', createAdminVibeRouter({ db }));
+    console.log('🤖 AI 编程设置已挂载：/api/admin/vibe');
+  } catch (e) {
+    console.error('AI 编程设置挂载失败:', e);
   }
 
   app.get('/api/user', authMiddleware, (req, res) => {
@@ -935,7 +1018,10 @@ async function start() {
     res.json({ count });
   });
 
-  // 从钉钉家校通讯录拉取（学校/班级/学生）并写入后台，按名称幂等去重
+  // 从钉钉家校通讯录「对账」同步（学校/班级/学生），以钉钉为准：
+  //   1. 钉钉有、平台没有 -> 新增
+  //   2. 两边都有        -> 原样保留；补齐钉钉 userId；换班则跟随转班；曾被标记离校则恢复在校
+  //   3. 平台有、钉钉没有 -> 标记「离校」(active=0)，保留全部历史数据，仅禁止登录
   app.post('/api/admin/sync/dingtalk', adminMiddleware, async (req, res) => {
     try {
       const classes = await fetchClasses();
@@ -945,36 +1031,187 @@ async function start() {
         });
       }
 
-      let newSchools = 0, newClasses = 0, newStudents = 0;
-
+      // 先把钉钉侧数据完整拉齐：中途失败就一个字都不写，避免半量数据把人误判成离校
+      const remote = [];
       for (const c of classes) {
-        // 学校
-        let school = db.prepare('SELECT * FROM schools WHERE name = ?').get(c.schoolName);
-        if (!school) {
-          db.prepare('INSERT INTO schools (name) VALUES (?)').run(c.schoolName);
-          school = db.prepare('SELECT * FROM schools WHERE name = ?').get(c.schoolName);
-          newSchools++;
-        }
-        // 班级
-        let cls = db.prepare('SELECT * FROM classes WHERE school_id = ? AND name = ?').get(school.id, c.className);
-        if (!cls) {
-          db.prepare('INSERT INTO classes (school_id, name) VALUES (?, ?)').run(school.id, c.className);
-          cls = db.prepare('SELECT * FROM classes WHERE school_id = ? AND name = ?').get(school.id, c.className);
-          newClasses++;
-        }
-        // 学生
-        const students = await fetchStudentsInClass(c.classId);
-        for (const st of students) {
-          const exist = db.prepare('SELECT id FROM students WHERE school_id = ? AND class_id = ? AND name = ?').get(school.id, cls.id, st.name);
-          if (!exist) {
-            db.prepare('INSERT INTO students (school_id, class_id, name) VALUES (?, ?, ?)').run(school.id, cls.id, st.name);
-            newStudents++;
+        remote.push({ ...c, students: await fetchStudentsInClass(c.classId) });
+      }
+      const remoteTotal = remote.reduce((n, c) => n + c.students.length, 0);
+      if (remoteTotal === 0) {
+        return res.status(400).json({
+          error: '钉钉未返回任何学生，已中止同步（未修改任何数据）。请确认应用可见范围包含这些班级，且班级里确实有学生。'
+        });
+      }
+
+      const stats = { schools: 0, classes: 0, students: 0, moved: 0, reactivated: 0, archived: 0, deactivated: 0 };
+      const syncedSchools = new Set();
+      const seenIds = new Set();
+
+      db.exec('BEGIN TRANSACTION');
+      try {
+        for (const c of remote) {
+          // 学校
+          let school = db.prepare('SELECT * FROM schools WHERE name = ?').get(c.schoolName);
+          if (!school) {
+            db.prepare('INSERT INTO schools (name) VALUES (?)').run(c.schoolName);
+            school = db.prepare('SELECT * FROM schools WHERE name = ?').get(c.schoolName);
+            stats.schools++;
+          }
+          syncedSchools.add(school.id);
+
+          // 班级（已毕业停用的班级若重新出现在钉钉里，则重新启用）
+          let cls = db.prepare('SELECT * FROM classes WHERE school_id = ? AND name = ?').get(school.id, c.className);
+          if (!cls) {
+            db.prepare('INSERT INTO classes (school_id, name, active) VALUES (?, ?, 1)').run(school.id, c.className);
+            cls = db.prepare('SELECT * FROM classes WHERE school_id = ? AND name = ?').get(school.id, c.className);
+            stats.classes++;
+          } else if (Number(cls.active) === 0) {
+            db.prepare('UPDATE classes SET active = 1 WHERE id = ?').run(cls.id);
+          }
+
+          for (const st of c.students) {
+            if (!st.name) continue;
+
+            // 优先按钉钉 userId 精确匹配（同校内），这样同名学生、转班学生都能对上
+            let stu = st.userId
+              ? db.prepare('SELECT * FROM students WHERE school_id = ? AND dingtalk_userid = ?').get(school.id, st.userId)
+              : undefined;
+
+            // 退化为「班级 + 姓名」匹配（首次同步时老学生还没有 userId）
+            if (!stu) {
+              const byName = db.prepare('SELECT * FROM students WHERE school_id = ? AND class_id = ? AND name = ?').get(school.id, cls.id, st.name);
+              // 该同学已绑定了另一个 userId，说明是同名的另一个人，不能占用
+              const isHomonym = byName && st.userId && byName.dingtalk_userid && byName.dingtalk_userid !== st.userId;
+              stu = isHomonym ? undefined : byName;
+            }
+
+            if (!stu) {
+              db.prepare('INSERT INTO students (school_id, class_id, name, dingtalk_userid, active) VALUES (?, ?, ?, ?, 1)')
+                .run(school.id, cls.id, st.name, st.userId || null);
+              stats.students++;
+              continue;
+            }
+
+            seenIds.add(stu.id);
+            const moved = Number(stu.class_id) !== Number(cls.id);
+            const wasInactive = Number(stu.active) === 0;
+            const needUid = !!st.userId && !stu.dingtalk_userid;
+
+            if (moved) {
+              const curCls = db.prepare('SELECT active FROM classes WHERE id = ?').get(stu.class_id);
+              if (curCls && Number(curCls.active) === 0) {
+                // 已在归档班级（如 2026届1班）里，不跟随钉钉转班，避免毕业年级被拉回
+                stats.archived++;
+                continue;
+              }
+            }
+
+            if (moved || wasInactive || needUid) {
+              db.prepare('UPDATE students SET class_id = ?, dingtalk_userid = ?, active = 1 WHERE id = ?')
+                .run(cls.id, st.userId || stu.dingtalk_userid, stu.id);
+              if (moved) stats.moved++;
+              if (wasInactive) stats.reactivated++;
+            }
           }
         }
+
+        // 对账：已同步学校中，钉钉侧已经没有的学生 -> 标记离校
+        for (const sid of syncedSchools) {
+          const all = db.prepare('SELECT id, active FROM students WHERE school_id = ?').all(sid);
+          const wouldDrop = all.filter(s => !seenIds.has(s.id) && Number(s.active) === 1);
+
+          // 安全闸：一次要把某校过半学生标记离校，多半是钉钉还停留在上一学年（没升班）
+          // 或可见范围/权限异常只拉到部分班级，此时宁可中止，也不误伤
+          if (all.length > 0 && wouldDrop.length > all.length / 2) {
+            const school = db.prepare('SELECT name FROM schools WHERE id = ?').get(sid);
+            db.exec('ROLLBACK');
+            return res.status(400).json({
+              error: `已中止，未修改任何数据：本次同步会把「${school ? school.name : sid}」的 ${all.length} 名学生中的 ${wouldDrop.length} 名标记为离校（超过一半）。`
+                + `通常是钉钉家校通讯录还没完成新学年升班，或应用可见范围只覆盖了部分班级。请先确认钉钉侧数据正确后再同步。`
+            });
+          }
+
+          for (const s of wouldDrop) {
+            db.prepare('UPDATE students SET active = 0 WHERE id = ?').run(s.id);
+            stats.deactivated++;
+          }
+        }
+
+        db.exec('COMMIT');
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
       }
 
       saveDB(sqlDb);
-      res.json({ success: true, classCount: classes.length, schools: newSchools, classes: newClasses, students: newStudents });
+      res.json({
+        success: true,
+        classCount: classes.length,
+        remoteStudents: remoteTotal,
+        schools: stats.schools,
+        classes: stats.classes,
+        students: stats.students,
+        moved: stats.moved,
+        reactivated: stats.reactivated,
+        archived: stats.archived,
+        deactivated: stats.deactivated,
+      });
+    } catch (e) {
+      saveDB(sqlDb);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 学年升班：一至五年级 / 初一初二各升一级；毕业年级转为「xxxx届N班」并停用
+  // 只改班级归属，学生及其历史数据一律保留
+  app.post('/api/admin/promote', adminMiddleware, (req, res) => {
+    try {
+      const { school_id, year } = req.body || {};
+      const y = Number(year) || new Date().getFullYear();
+
+      const classList = school_id
+        ? db.prepare('SELECT * FROM classes WHERE school_id = ? ORDER BY id').all(Number(school_id))
+        : db.prepare('SELECT * FROM classes ORDER BY id').all();
+
+      const plans = [];
+      const skipped = [];
+      for (const c of classList) {
+        if (Number(c.active) === 0) continue; // 已毕业/停用的班级不再参与升班
+        const r = promoteClassName(c.name, y);
+        if (!r) { skipped.push(c.name); continue; }
+        plans.push({ id: c.id, from: c.name, to: r.newName, graduated: r.graduated });
+      }
+
+      if (!plans.length) {
+        return res.status(400).json({
+          error: '没有可升班的班级（班级名需形如「三年级2班」「初二3班」，且班级处于启用状态）。',
+          skipped
+        });
+      }
+
+      // 两阶段改名，规避 UNIQUE(school_id, name) 的临时冲突
+      // （例如：六年级1班先让位给五年级1班升上来的同名班级）
+      db.exec('BEGIN TRANSACTION');
+      try {
+        for (const p of plans) db.prepare('UPDATE classes SET name = ? WHERE id = ?').run('__promote__' + p.id, p.id);
+        for (const p of plans) {
+          // 毕业班停用：不再出现在学生登录的班级下拉里
+          db.prepare('UPDATE classes SET name = ?, active = ? WHERE id = ?').run(p.to, p.graduated ? 0 : 1, p.id);
+        }
+        db.exec('COMMIT');
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+
+      saveDB(sqlDb);
+      res.json({
+        success: true,
+        year: y,
+        promoted: plans.filter(p => !p.graduated).map(p => ({ from: p.from, to: p.to })),
+        graduated: plans.filter(p => p.graduated).map(p => ({ from: p.from, to: p.to })),
+        skipped,
+      });
     } catch (e) {
       saveDB(sqlDb);
       res.status(500).json({ error: e.message });

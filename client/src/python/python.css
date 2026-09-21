@@ -1,0 +1,387 @@
+/* Python 编程（简化版 IDLE）模块样式 */
+
+.py-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, #fff5f5 0%, #f2f0ff 100%);
+  font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+  color: #2d3436;
+}
+
+/* ---------------- 顶栏 ---------------- */
+.py-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+}
+.py-logo { font-size: 26px; }
+.py-title { font-size: 18px; color: #4834d4; }
+.py-sub { font-size: 13px; color: #8a83a8; }
+.py-grow { flex: 1; }
+.py-user {
+  background: #fff;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  color: #6c5ce7;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, .12);
+}
+.py-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 15px;
+  background: #fff;
+  color: #6c5ce7;
+  font-size: 13.5px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, .15);
+}
+.py-chip:hover { background: #6c5ce7; color: #fff; }
+
+/* ---------------- 主体两栏 ---------------- */
+.py-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+.py-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 6px 20px rgba(80, 60, 160, .1);
+  overflow: hidden;
+}
+.py-pane-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #efeafb;
+  flex-wrap: wrap;
+}
+.py-pane-title { font-size: 14.5px; font-weight: 700; color: #4834d4; }
+.py-name {
+  width: 130px;
+  padding: 5px 9px;
+  border: 1px solid #e2ddf5;
+  border-radius: 9px;
+  font-size: 13px;
+  color: #6c5ce7;
+  outline: none;
+}
+.py-name:focus { border-color: #a29bfe; }
+
+.py-btn {
+  border: 1px solid #e2ddf5;
+  background: #fff;
+  color: #5b4b8a;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.py-btn:hover:not(:disabled) { background: #f4f1ff; border-color: #c9c0f5; }
+.py-btn:disabled { opacity: .5; cursor: not-allowed; }
+.py-btn.primary {
+  background: linear-gradient(135deg, #7c5cff, #a29bfe);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+.py-btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+
+.py-status { font-size: 12.5px; color: #8a83a8; }
+.py-status.boot { color: #f0932b; }
+.py-status.run { color: #f0932b; }
+.py-status.done { color: #20bf6b; }
+.py-status.error { color: #eb3b5a; }
+.py-status.wait { color: #0abde3; }
+.py-btn.ok { background: #eafaf1; border-color: #b8f0d4; color: #16a085; font-weight: 700; }
+
+/* ---------------- 编辑器 ---------------- */
+.py-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #fdfcff;
+}
+.py-gutter {
+  flex: 0 0 auto;
+  width: 54px;
+  overflow: hidden;
+  background: #f6f3ff;
+  border-right: 1px solid #efeafb;
+  user-select: none;
+}
+.py-gutter-inner { padding: 10px 10px 0 0; will-change: transform; }
+.py-ln {
+  height: 22px;
+  line-height: 22px;
+  text-align: right;
+  font-size: 12.5px;
+  font-family: Consolas, Menlo, monospace;
+  color: #b3abdd;
+}
+.py-ln.bad { color: #ff4d6d; font-weight: 700; }
+.py-code {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  padding: 10px 12px;
+  background: transparent;
+  color: #2b2350;
+  font-family: Consolas, Menlo, 'Cascadia Code', monospace;
+  font-size: 14px;
+  line-height: 22px;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+}
+.py-foot {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #8a83a8;
+  border-top: 1px solid #efeafb;
+  background: #fbfaff;
+}
+
+/* ---------------- 输出区 ---------------- */
+.py-out {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #1c1a2e;
+  color: #e8e3ff;
+  padding: 14px 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Consolas, Menlo, 'Cascadia Code', monospace;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.py-line.err { color: #ff9d9d; }
+.py-line.tip { color: #b9adf7; }
+.py-line.echo { color: #8be9a8; }
+.py-line.state { color: #ffd79a; }
+
+/* 报错卡片：英文 + 中文并排 */
+.py-err {
+  display: flex;
+  gap: 12px;
+  margin: 10px 0;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  color: #2b2350;
+  white-space: normal;
+}
+.py-err-col {
+  flex: 1;
+  min-width: 0;
+  background: #fbfaff;
+  border-radius: 11px;
+  padding: 11px 13px;
+  border: 1px solid #efeafb;
+}
+.py-err-col.cn { background: #fffaf0; border-color: #ffe4c4; }
+.py-err-cap { font-size: 12.5px; color: #8a83a8; margin-bottom: 7px; }
+.py-err-pre {
+  margin: 0;
+  font-family: Consolas, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #c0392b;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.py-err-note { margin-top: 8px; font-size: 12.5px; color: #5b5075; }
+.py-err-title { font-size: 15px; font-weight: 700; color: #e17055; margin-bottom: 6px; }
+.py-err-where {
+  font-size: 13px;
+  color: #2b2350;
+  background: #fff;
+  border: 1px dashed #ffc9a9;
+  border-radius: 9px;
+  padding: 6px 9px;
+  margin-bottom: 8px;
+  font-family: Consolas, Menlo, monospace;
+}
+.py-err-row { display: flex; gap: 8px; margin-bottom: 6px; font-size: 13.5px; line-height: 1.7; }
+.py-err-row b { flex: 0 0 auto; color: #6c5ce7; }
+.py-err-sample {
+  margin: 8px 0 0;
+  background: #241f42;
+  color: #e8e3ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: Consolas, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  overflow: auto;
+  white-space: pre;
+}
+
+/* ---------------- 输入区 ---------------- */
+.py-inbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f6f3ff;
+  border-top: 1px solid #efeafb;
+}
+.py-inbar > span { font-size: 13.5px; color: #6c5ce7; white-space: nowrap; }
+.py-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 11px;
+  border: 1px solid #ddd5f7;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  font-family: Consolas, Menlo, monospace;
+}
+.py-input:focus { border-color: #7c5cff; }
+
+.py-batch {
+  flex: 0 0 auto;
+  padding: 12px;
+  background: #f6f3ff;
+  border-top: 1px solid #efeafb;
+}
+.py-batch p { margin: 0 0 8px; font-size: 13px; color: #5b5075; }
+.py-batch-ta {
+  width: 100%;
+  min-height: 70px;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1px solid #ddd5f7;
+  border-radius: 10px;
+  font-family: Consolas, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  margin-bottom: 8px;
+}
+.py-batch-ta:focus { border-color: #7c5cff; }
+
+/* ---------------- 弹窗 ---------------- */
+.py-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 20, 60, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.py-modal {
+  background: #fff;
+  border-radius: 20px;
+  width: 92%;
+  max-width: 760px;
+  max-height: 82vh;
+  overflow: auto;
+  padding: 18px 20px;
+  box-shadow: 0 20px 50px rgba(40, 25, 90, .3);
+}
+.py-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4834d4;
+  margin-bottom: 14px;
+}
+.py-x {
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: #8a83a8;
+  cursor: pointer;
+}
+.py-modal-tip { font-size: 12.5px; color: #8a83a8; margin: 14px 0 0; }
+
+/* 截图预览 */
+.py-shot-box {
+  max-height: 62vh;
+  overflow: auto;
+  background: #f1f2f6;
+  border-radius: 14px;
+  padding: 12px;
+}
+.py-shot-box img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+.py-shot-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.py-samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.py-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid #efeafb;
+  background: #fbfaff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.py-sample:hover { border-color: #c9c0f5; background: #f4f1ff; }
+.py-sample-emoji { font-size: 20px; }
+.py-sample-name { font-size: 14px; font-weight: 700; color: #4834d4; }
+.py-sample-desc { font-size: 12.5px; color: #8a83a8; }
+
+.py-cheats { display: flex; flex-direction: column; gap: 7px; }
+.py-cheat {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: #fbfaff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+}
+.py-cheat code {
+  flex: 0 0 auto;
+  min-width: 220px;
+  font-family: Consolas, Menlo, monospace;
+  color: #6c5ce7;
+}
+.py-cheat span { color: #5b5075; }
+
+/* ---------------- 窄屏 ---------------- */
+@media (max-width: 900px) {
+  .py-body { flex-direction: column; }
+  .py-pane { min-height: 320px; }
+  .py-err { flex-direction: column; }
+}
