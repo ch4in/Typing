@@ -232,7 +232,7 @@ function HomePage() {
         <div className="decorations">
           <span>🌟</span><span>📚</span><span>🎨</span><span>🚀</span><span>💡</span>
         </div>
-        <h1>{BRAND.emoji} {BRAND.name}</h1>
+        <h1>{BRAND.emoji ? `${BRAND.emoji} ` : ''}{BRAND.name}</h1>
         <p className="subtitle">{BRAND.slogan} · 选择一张卡片，开启今天的学习之旅吧！</p>
       </div>
 

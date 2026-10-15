@@ -26,15 +26,18 @@ function readUser() {
 }
 
 // Pyodide：在浏览器里跑真正的 Python（WebAssembly 版），不用装任何东西。
-// 按顺序尝试这些下载源；第一个 '/pyodide/' 是本地内置目录，
-// 没内置时会秒失败自动跳到下一个，内置了就完全离线可用。
-const PYODIDE_SOURCES = [
-  '/pyodide/',
+// 下载源说明：
+//   1）最优先用【本项目自带的本地目录】client/dist/pyodide（机房断网也能跑，秒开）；
+//      预览是放在沙箱 iframe 里的（origin 为 null），所以这里必须拼成绝对地址，
+//      否则相对路径会解析到 about:srcdoc 上，本地源就白搭了。
+//   2）只有在本地目录被删掉时，才会去公网兜底（jsdelivr 的两个域名 + unpkg）。
+const PYODIDE_REMOTE_SOURCES = [
   'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
   'https://fastly.jsdelivr.net/pyodide/v0.26.4/full/',
   'https://unpkg.com/pyodide@0.26.4/',
-  'https://cdn.bootcdn.net/ajax/libs/pyodide/0.26.4/',
 ];
+// 运行时拼上当前站点地址，保证本地源一定是能直接访问的绝对地址
+const localPyodide = () => `${window.location.origin}/pyodide/`;
 
 // 塞进 Python 里跑的“开胃菜”：
 // 1) 把 input() 换成可以等待页面输入框的版本（沙箱里 window.prompt 会被浏览器拦掉）
@@ -115,6 +118,15 @@ def _transform(code):
 def _plan(code):
     if 'input' not in code:
         return json.dumps({'mode': 'plain'})
+    # 先看原始代码本身写对没有：引号只写了一半这种要当场报错，
+    # 不然会被误判成「要一次性收答案」，弹出填答案的框
+    try:
+        compile(code, '<exec>', 'exec')
+    except SyntaxError as e:
+        return json.dumps({'mode': 'error',
+                           'type': type(e).__name__,
+                           'message': str(e),
+                           'lineno': getattr(e, 'lineno', None)})
     try:
         src = _transform(code)
         compile(src, '<exec>', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
@@ -164,7 +176,7 @@ button:hover{background:#7d6ef0}
 <script>
 var CODE = ${src};
 var PRELUDE = ${JSON.stringify(PY_PRELUDE)};
-var SOURCES = ${JSON.stringify(PYODIDE_SOURCES)};
+var SOURCES = ${JSON.stringify([localPyodide()].concat(PYODIDE_REMOTE_SOURCES))};
 var OUT = document.getElementById('out');
 var ST = document.getElementById('st');
 var INBAR = document.getElementById('inbar');
@@ -226,15 +238,26 @@ function loadScript(url) {
     document.head.appendChild(s);
   });
 }
-// 一个一个源试，哪个能用就用哪个（本地内置的最优先）
+// 卡住太久就换下一个源，别让小朋友干等着
+function withTimeout(p, ms, url) {
+  return new Promise(function (res, rej) {
+    var done = false;
+    var t = setTimeout(function () { if (!done) { done = true; rej(new Error('等太久：' + url)); } }, ms);
+    p.then(function (v) { if (!done) { done = true; clearTimeout(t); res(v); } },
+           function (e) { if (!done) { done = true; clearTimeout(t); rej(e); } });
+  });
+}
+// 一个一个源试：第 1 个是本机自带的（不用联网），后面的才是公网兜底
 async function boot() {
   var lastErr = null;
   for (var i = 0; i < SOURCES.length; i++) {
     try {
-      state('正在准备 Python 运行环境…（尝试第 ' + (i + 1) + '/' + SOURCES.length + ' 个来源）');
-      await loadScript(SOURCES[i] + 'pyodide.js');
+      state(i === 0
+        ? '正在准备 Python 运行环境…（用本机自带的，不用联网）'
+        : '正在准备 Python 运行环境…（联网下载，第 ' + (i + 1) + '/' + SOURCES.length + ' 个来源）');
+      await withTimeout(loadScript(SOURCES[i] + 'pyodide.js'), i === 0 ? 20000 : 15000, SOURCES[i]);
       if (typeof loadPyodide !== 'function') throw new Error('脚本加载了但没生效');
-      return await loadPyodide({ indexURL: SOURCES[i] });
+      return await withTimeout(loadPyodide({ indexURL: SOURCES[i] }), i === 0 ? 60000 : 40000, SOURCES[i]);
     } catch (e) {
       lastErr = e;
     }
@@ -249,6 +272,14 @@ async function main() {
     await py.runPythonAsync(PRELUDE);
     py.globals.set('__user_code', CODE);
     var plan = JSON.parse(await py.runPythonAsync('_plan(__user_code)'));
+    if (plan.mode === 'error') {
+      put('\\n😢 代码写得有点问题，先改一下再运行：\\n', 'err');
+      var ln = plan.lineno ? ('（第 ' + plan.lineno + ' 行）') : '';
+      put('    ' + plan.type + ': ' + plan.message + ln + '\\n', 'err');
+      put('    小提示：看看这一行的引号是不是只写了一半、括号是不是没关上 🙂\\n', 'tip');
+      state('❌ 出错了');
+      return;
+    }
     state('运行中…');
     if (plan.mode === 'async') {
       await py.runPythonAsync(plan.src);

@@ -1220,6 +1220,17 @@ async function start() {
 
   // 托管前端构建产物（生产模式）
   const clientDist = path.join(__dirname, '..', 'client', 'dist');
+
+  // 离线 Python 运行环境：作品预览是在「沙箱 iframe」里跑的（origin 为 null，算跨域），
+  // 必须带 Access-Control-Allow-Origin，否则里面的 fetch 拿不到 wasm / 标准库，
+  // 就会跳过本地这份、跑去联网下载。放在静态目录托管之前，只对 pyodide 生效。
+  const pyodideDir = path.join(clientDist, 'pyodide');
+  if (fs.existsSync(pyodideDir)) {
+    app.use('/pyodide', express.static(pyodideDir, {
+      setHeaders(res) { res.setHeader('Access-Control-Allow-Origin', '*'); },
+    }));
+  }
+
   if (fs.existsSync(clientDist)) {
     app.use(express.static(clientDist));
     // SPA fallback：所有非 API 请求返回 index.html

@@ -3,13 +3,16 @@
 // 特意放在 Web Worker 里：学生写了个停不下来的 while 循环，页面也不会卡死，
 // 点一下「⏹ 停止」就能把它掐掉（主线程直接 terminate 这个 worker）。
 
-// 按顺序试这些来源，第一个 '/pyodide/' 是本项目自带的，完全不用联网。
+// 按顺序试这些来源：
+//   第 1 个 '/pyodide/' 是本项目自带的本地目录（机房断网也能跑，秒开）；
+//   后面的公网源只有当本地目录被删掉时才会用到（worker 跟页面同源，本地源一定能直接用）。
+//   注：BootCDN / staticfile 等国内镜像只放了部分文件（缺 python_stdlib.zip），
+//   加载会失败，所以这里不放它们，避免白等一场。
 const SOURCES = [
   '/pyodide/',
   'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
   'https://fastly.jsdelivr.net/pyodide/v0.26.4/full/',
   'https://unpkg.com/pyodide@0.26.4/',
-  'https://cdn.bootcdn.net/ajax/libs/pyodide/0.26.4/',
 ];
 
 // 在 Python 里先准备好的小工具：
@@ -69,11 +72,21 @@ def _make_ns():
 def _plan(code):
     if 'input' not in code:
         return json.dumps({'mode': 'plain', 'src': code})
+    # 第一步：先看看原始代码本身写对没有。
+    # 引号只写了一半、括号没关这类「语法错误」必须当场报错，
+    # 不然会被后面的流程误判成「要一次性收答案」，弹出填答案的框。
+    try:
+        compile(code, '<exec>', 'exec')
+    except SyntaxError as e:
+        return json.dumps({'mode': 'error', 'err': json.loads(_err_json(e))})
+    # 第二步：原始代码没问题，才把 input() 换成 await _py_input() 再试
     src = re.sub(r'\\binput\\s*\\(', 'await _py_input(', code)
     try:
         compile(src, '<exec>', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
         return json.dumps({'mode': 'await', 'src': src})
     except SyntaxError:
+        # 走到这里通常是「函数里面用了 input()」，改不成 await，
+        # 这种才需要请学生先把答案一次性写好
         return json.dumps({'mode': 'batch', 'src': code})
 
 def _frames(e):
@@ -170,6 +183,12 @@ async function run(code) {
     const ns = p.runPython('_make_ns()');
     p.globals.set('__src', code);
     const plan = JSON.parse(await p.runPythonAsync('_plan(__src)'));
+
+    // 语法错误（比如引号只写了一半）：直接报错，不要去问学生要答案
+    if (plan.mode === 'error') {
+      post({ type: 'error', error: plan.err });
+      return;
+    }
 
     if (plan.mode === 'batch') {
       // 函数里面用了 input()，只能请学生先把答案都写好，一次性喂给程序
