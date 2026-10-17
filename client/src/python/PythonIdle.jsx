@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './python.css';
 import { explainError } from './errorExplain';
 import { SAMPLES, CHEATS } from './samples';
+import { tokenizeLines, TOK_COLOR } from './highlight';
 
 // ==================== 截图用的小工具 ====================
 // 上半部分画代码，下半部分画运行结果，全部用 canvas 手画，不需要额外的库
@@ -20,23 +21,6 @@ const OUT_COLOR = {
   state: '#a5d8ff',
   echo: '#c0eb75',
 };
-
-// 一行太长就折成几行，保证截图里不丢内容
-function wrapText(ctx, text, maxW) {
-  if (text === '') return [''];
-  const rows = [];
-  let cur = '';
-  for (const ch of Array.from(text)) {
-    if (cur && ctx.measureText(cur + ch).width > maxW) {
-      rows.push(cur);
-      cur = ch;
-    } else {
-      cur += ch;
-    }
-  }
-  rows.push(cur);
-  return rows;
-}
 
 // 把一行里带不同颜色的几段排成若干条「看得见的行」（必要时折行）
 function wrapParts(ctx, parts, maxW) {
@@ -106,9 +90,14 @@ function drawShot({ code, outList, fileName, errLine }) {
   const outAvail = SHOT_W - SHOT_PAD * 2 - 20;
 
   // ---- 先排好所有要画的内容，才能知道画布要多高 ----
-  const codeBlocks = String(code).replace(/\t/g, '    ').split('\n').map((text, idx) => ({
+  // 代码按语法切成小块上色，跟编辑器里看到的颜色一致
+  const codeBlocks = tokenizeLines(String(code).replace(/\t/g, '    ')).map((parts, idx) => ({
     no: idx + 1,
-    rows: wrapText(mctx, text, codeAvail),
+    rows: wrapParts(
+      mctx,
+      parts.map((p) => ({ text: p.text, color: TOK_COLOR[p.type] || TOK_COLOR.plain })),
+      codeAvail,
+    ),
   }));
   const codeRowCount = codeBlocks.reduce((n, b) => n + b.rows.length, 0);
 
@@ -189,10 +178,14 @@ function drawShot({ code, outList, fileName, errLine }) {
         ctx.fillStyle = '#c8ced3';
         ctx.fillText('↳', SHOT_PAD + SHOT_GUTTER - 14, cy);
       }
-      if (row) {
-        ctx.fillStyle = '#2d3436';
-        ctx.fillText(row, SHOT_PAD + SHOT_GUTTER, cy);
-      }
+      // 一行 = 几段带颜色的文字，一段一段接着画
+      let x = SHOT_PAD + SHOT_GUTTER;
+      row.forEach((p) => {
+        if (!p.text) return;
+        ctx.fillStyle = p.color || '#2d3436';
+        ctx.fillText(p.text, x, cy);
+        x += ctx.measureText(p.text).width;
+      });
       y += SHOT_LINE_H;
     });
   });
@@ -239,6 +232,44 @@ function loadDraft() {
   return { code: HELLO, name: 'main.py' };
 }
 
+// 编辑器着色层：每种小积木对应一个 CSS 类
+const tokCls = (t) => (t === 'plain' ? '' : `py-tok-${t}`);
+
+// 渲染着色层里的一行；bad 行（语法错误行）整行铺红底，
+// 并且从出错的列开始到行尾画红色波浪线（跟真编辑器一样）
+function renderHlLine(spans, li, errLine, liveErr) {
+  const no = li + 1;
+  const isBad = errLine === no;
+  let body;
+  if (isBad && liveErr && liveErr.offset) {
+    const start = Math.max(1, Number(liveErr.offset));
+    const nodes = [];
+    let col = 1;
+    spans.forEach((s, si) => {
+      const a = col;
+      const b = col + s.text.length - 1;
+      if (b < start) {
+        nodes.push(<span key={si} className={tokCls(s.type)}>{s.text}</span>);
+      } else if (a >= start) {
+        nodes.push(<span key={si} className={`${tokCls(s.type)} py-tok-err`}>{s.text}</span>);
+      } else {
+        const cut = start - a;
+        nodes.push(<span key={si} className={tokCls(s.type)}>{s.text.slice(0, cut)}</span>);
+        nodes.push(<span key={`${si}e`} className={`${tokCls(s.type)} py-tok-err`}>{s.text.slice(cut)}</span>);
+      }
+      col = b + 1;
+    });
+    if (col <= start) {
+      // 出错位置在行尾（比如冒号没写）：补个空格让波浪线看得见
+      nodes.push(<span key="end" className="py-tok-err"> </span>);
+    }
+    body = nodes;
+  } else {
+    body = spans.map((s, si) => <span key={si} className={tokCls(s.type)}>{s.text}</span>);
+  }
+  return <div key={li} className={`py-hl-line${isBad ? ' bad' : ''}`}>{body}</div>;
+}
+
 // 报错卡片：左边 Python 原始报错（原样），右边中文解释
 function ErrorCard({ err, code }) {
   const cn = explainError(err, code);
@@ -275,6 +306,7 @@ export default function PythonIdle() {
   const [out, setOut] = useState([]);
   const [status, setStatus] = useState('idle'); // idle / boot / run / wait / done / error
   const [errLine, setErrLine] = useState(null);
+  const [liveErr, setLiveErr] = useState(null); // 边写边查出来的语法错误（不运行也标红）
   const [waitInput, setWaitInput] = useState(false);
   const [waitBatch, setWaitBatch] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -296,7 +328,10 @@ export default function PythonIdle() {
   const outRef = useRef(null);
   const taRef = useRef(null);
   const gutterRef = useRef(null);
+  const hlRef = useRef(null);
   const shotRef = useRef(null);
+  const checkSeq = useRef(0); // 每发一次语法检查就 +1，防止旧结果盖掉新的
+  const runningRef = useRef(false); // 正在运行/等输入时为 true，这段时间不查语法
 
   // 输出一行行来，攒一小会儿再一起显示，免得刷得太快看不清
   const push = useCallback((line) => {
@@ -329,6 +364,7 @@ export default function PythonIdle() {
       push({ kind: 'tip', text: '⌨️ 这个程序里函数用到了 input，请先把答案按顺序每行写好，再点「▶ 把答案给程序」：\n' });
     } else if (m.type === 'done') {
       clearTimeout(slowTimer.current);
+      runningRef.current = false;
       setSlow(false);
       setWaitInput(false);
       setWaitBatch(false);
@@ -337,15 +373,18 @@ export default function PythonIdle() {
       if (m.stopped === 'exit') push({ kind: 'tip', text: '🏁 程序结束了\n' });
     } else if (m.type === 'error') {
       clearTimeout(slowTimer.current);
+      runningRef.current = false;
       setSlow(false);
       setWaitInput(false);
       setWaitBatch(false);
       setBootMsg('');
       setStatus('error');
+      setLiveErr(m.error || null);
       if (m.error && m.error.lineno) setErrLine(Number(m.error.lineno));
       push({ kind: 'error', error: m.error });
     } else if (m.type === 'fatal') {
       clearTimeout(slowTimer.current);
+      runningRef.current = false;
       setSlow(false);
       setWaitInput(false);
       setWaitBatch(false);
@@ -353,6 +392,16 @@ export default function PythonIdle() {
       setStatus('error');
       push({ kind: 'err', text: `\n😢 运行环境出问题了：${m.text}\n` });
       push({ kind: 'tip', text: '可以试试刷新页面再来一次；如果一直不行，请告诉老师 🙋\n' });
+    } else if (m.type === 'checked') {
+      // 边写边查的结果回来了：不是最新代码的结果直接扔掉
+      if (m.seq !== checkSeq.current) return;
+      setLiveErr(m.err || null);
+      setErrLine(m.err && m.err.lineno ? Number(m.err.lineno) : null);
+      // 只是后台查语法把环境启动了的话，状态栏恢复「等待运行」
+      if (!runningRef.current) {
+        setStatus((s) => (s === 'boot' ? 'idle' : s));
+        setBootMsg('');
+      }
     }
   }, [push]);
 
@@ -373,11 +422,13 @@ export default function PythonIdle() {
     bufRef.current = [];
     setOut([]);
     setErrLine(null);
+    setLiveErr(null);
     setSlow(false);
     setWaitInput(false);
     setWaitBatch(false);
     setStatus('run');
     setBootMsg('');
+    runningRef.current = true;
     clearTimeout(slowTimer.current);
     // 跑太久就提醒一下：多半是 while 循环停不下来
     slowTimer.current = setTimeout(() => setSlow(true), 12000);
@@ -391,6 +442,7 @@ export default function PythonIdle() {
     }
     clearTimeout(slowTimer.current);
     bufRef.current = [];
+    runningRef.current = false;
     setSlow(false);
     setWaitInput(false);
     setWaitBatch(false);
@@ -415,16 +467,29 @@ export default function PythonIdle() {
     return () => clearTimeout(t);
   }, [code, fileName]);
 
+  // 边写边查语法：停笔 0.7 秒就把代码发给 worker 编译一下（只编译不运行），
+  // 有错就把出错行标红 + 画波浪线，跟真编辑器一样。第一次检查会顺带把
+  // Python 环境启动好，这样学生点「▶ 运行」时就是秒开。
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (runningRef.current) return;
+      checkSeq.current += 1;
+      ensureWorker().postMessage({ type: 'check', code: codeRef.current, seq: checkSeq.current });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [code, ensureWorker]);
+
   // 输出区自动滚到底
   useEffect(() => {
     const el = outRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [out, waitInput, waitBatch]);
 
-  const syncGutter = () => {
+  const syncScroll = () => {
     const ta = taRef.current;
-    const g = gutterRef.current;
-    if (ta && g) g.style.transform = `translateY(${-ta.scrollTop}px)`;
+    if (!ta) return;
+    if (gutterRef.current) gutterRef.current.style.transform = `translateY(${-ta.scrollTop}px)`;
+    if (hlRef.current) hlRef.current.style.transform = `translate(${-ta.scrollLeft}px, ${-ta.scrollTop}px)`;
   };
 
   const submitInput = () => {
@@ -486,6 +551,10 @@ export default function PythonIdle() {
   };
 
   const lineCount = code.split('\n').length;
+  // 着色层的「小积木」按行切好；代码没变就不重算，打字才不卡
+  const hlLines = useMemo(() => tokenizeLines(code), [code]);
+  // 语法错误的儿童友好版一句话提示（显示在编辑器底部）
+  const liveHint = useMemo(() => (liveErr ? explainError(liveErr, codeRef.current) : null), [liveErr]);
 
   const download = () => {
     let f = String(fileName || 'main.py').trim() || 'main.py';
@@ -651,21 +720,37 @@ export default function PythonIdle() {
                 ))}
               </div>
             </div>
-            <textarea
-              ref={taRef}
-              className="py-code"
-              value={code}
-              onChange={(e) => { setCode(e.target.value); setErrLine(null); }}
-              onScroll={syncGutter}
-              onKeyDown={onKeyDown}
-              spellCheck={false}
-              wrap="off"
-              placeholder="在这里写 Python 代码…"
-            />
+            <div className="py-editor-main">
+              {/* 着色层：只负责显示颜色，摸不到（pointer-events 关掉），
+                  打字、选中都还是落在上面透明的 textarea 里 */}
+              <pre className="py-hl" aria-hidden="true">
+                <div className="py-hl-inner" ref={hlRef}>
+                  {hlLines.map((spans, li) => renderHlLine(spans, li, errLine, liveErr))}
+                </div>
+              </pre>
+              <textarea
+                ref={taRef}
+                className="py-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                onScroll={syncScroll}
+                onKeyDown={onKeyDown}
+                spellCheck={false}
+                wrap="off"
+                placeholder="在这里写 Python 代码…"
+              />
+            </div>
           </div>
 
           <div className="py-foot">
-            ⌨️ Ctrl + 回车 运行　·　Tab 缩进 4 格
+            {liveErr ? (
+              <span className="py-foot-err" title={liveErr.message || ''}>
+                🐞 第 {liveErr.lineno || '?'} 行{liveHint ? `：${liveHint.title}` : ' 好像写错了'}
+                {liveHint && liveHint.fix ? `　👉 ${liveHint.fix}` : ''}
+              </span>
+            ) : (
+              '⌨️ Ctrl + 回车 运行　·　Tab 缩进 4 格　·　写错的地方会自动标红'
+            )}
           </div>
         </section>
 
@@ -679,7 +764,7 @@ export default function PythonIdle() {
               {copied ? '✅ 已复制' : '📋 复制结果'}
             </button>
             <button className="py-btn" onClick={takeShot} title="把代码和运行结果做成一张图片">📷 截图</button>
-            <button className="py-btn" onClick={() => { setOut([]); setErrLine(null); }}>🗑 清空</button>
+            <button className="py-btn" onClick={() => { setOut([]); setErrLine(null); setLiveErr(null); }}>🗑 清空</button>
           </div>
 
           <div className="py-out" ref={outRef}>

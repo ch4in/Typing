@@ -110,6 +110,8 @@
 .py-btn.ok { background: #eafaf1; border-color: #b8f0d4; color: #16a085; font-weight: 700; }
 
 /* ---------------- 编辑器 ---------------- */
+/* 结构：行号栏 + 编辑区。编辑区 = 底下的着色层（只显示颜色）+ 上面透明的
+   textarea（负责打字、光标、选中），两层字体、行高、内边距必须一模一样 */
 .py-editor {
   flex: 1;
   min-height: 0;
@@ -134,22 +136,71 @@
   color: #b3abdd;
 }
 .py-ln.bad { color: #ff4d6d; font-weight: 700; }
+.py-editor-main { position: relative; flex: 1; min-width: 0; }
+.py-hl {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.py-hl-inner,
 .py-code {
-  flex: 1;
-  min-width: 0;
+  padding: 10px 12px;
+  font-family: Consolas, Menlo, 'Cascadia Code', monospace;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+  tab-size: 4;
+  white-space: pre;
+}
+.py-hl-inner {
+  display: block;
+  min-width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  color: #2b2350;
+  will-change: transform;
+}
+.py-hl-line { height: 22px; }
+/* 出错行：整行淡红底（负边距让红底铺满整行宽度，跟真编辑器一样） */
+.py-hl-line.bad { background: rgba(255, 77, 109, 0.13); margin: 0 -12px; padding: 0 12px; }
+/* 出错的具体位置：红色波浪线 + 稍深一点的红底 */
+.py-tok-err {
+  text-decoration: underline wavy #ff4d6d;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+  background: rgba(255, 77, 109, 0.16);
+}
+/* 语法着色：参考 VS Code 浅色主题的通用配色 */
+.py-tok-kw { color: #0000ff; }                 /* 关键字：蓝 */
+.py-tok-builtin,
+.py-tok-call,
+.py-tok-defname,
+.py-tok-deco { color: #795e26; }               /* 函数/内置：土黄 */
+.py-tok-classname { color: #267f99; }          /* 类名：青 */
+.py-tok-string { color: #a31515; }             /* 字符串：砖红 */
+.py-tok-comment { color: #008000; }            /* 注释：绿 */
+.py-tok-number { color: #098658; }             /* 数字：青绿 */
+.py-code {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
   border: 0;
   outline: none;
   resize: none;
-  padding: 10px 12px;
   background: transparent;
-  color: #2b2350;
-  font-family: Consolas, Menlo, 'Cascadia Code', monospace;
-  font-size: 14px;
-  line-height: 22px;
-  tab-size: 4;
-  white-space: pre;
+  color: transparent;               /* 文字透明，颜色交给底下的着色层 */
+  caret-color: #2b2350;             /* 光标还是要看得见的 */
   overflow: auto;
 }
+.py-code::placeholder { color: #b3abdd; }
+.py-code::selection { background: rgba(122, 100, 238, 0.28); }
 .py-foot {
   flex: 0 0 auto;
   padding: 8px 12px;
@@ -157,7 +208,11 @@
   color: #8a83a8;
   border-top: 1px solid #efeafb;
   background: #fbfaff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.py-foot-err { color: #eb3b5a; font-weight: 700; }
 
 /* ---------------- 输出区 ---------------- */
 .py-out {

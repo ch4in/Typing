@@ -111,6 +111,14 @@ def _err_json(e):
         'traceback': ''.join(parts),
     })
 
+def _check(code):
+    # 只编译不运行：编辑器里边写边查语法就靠它（跟真 IDLE 保存时的检查一样）
+    try:
+        compile(code, '<exec>', 'exec')
+        return None
+    except BaseException as e:
+        return _err_json(e)
+
 async def _safe(src, ns):
     try:
         obj = compile(src, '<exec>', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
@@ -170,10 +178,14 @@ async function boot() {
         return p;
       } catch (e) {
         lastErr = e;
+        // 把失败原因亮出来：既方便学生看进度，也方便排查是哪个环节出了问题
+        post({ type: 'state', text: `第 ${i + 1} 个来源没成功（${(e && e.message) || e}），再试下一个…` });
       }
     }
     throw lastErr || new Error('所有来源都连不上');
   })();
+  // 全部失败就把 booting 清掉，下次点运行/检查可以重新再试
+  booting.catch(() => { booting = null; });
   return booting;
 }
 
@@ -219,10 +231,25 @@ async function run(code) {
   }
 }
 
+// 只做语法检查（不运行）：编辑器边写边查。seq 用来让页面丢掉过期的结果
+async function check(code, seq) {
+  try {
+    const p = await boot();
+    p.globals.set('__ck_src', code);
+    const out = p.runPython('_check(__ck_src)');
+    post({ type: 'checked', seq, err: out ? JSON.parse(out) : null });
+  } catch (e) {
+    // 环境还没准备好 / 启动失败：这次先不查，别吓着学生
+    post({ type: 'checked', seq, err: null });
+  }
+}
+
 self.onmessage = (e) => {
   const m = e.data || {};
   if (m.type === 'run') {
     run(String(m.code || ''));
+  } else if (m.type === 'check') {
+    check(String(m.code || ''), m.seq || 0);
   } else if (m.type === 'input') {
     if (pendingInput) {
       const resolve = pendingInput;
