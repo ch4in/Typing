@@ -63,13 +63,21 @@ const RULES = [
   },
   {
     test: (c) => c.type === 'SyntaxError' && /invalid character/.test(c.msg),
-    make: (c) => ({
-      title: '这里有电脑不认识的符号',
-      why: '八成是用了中文标点（比如中文括号（）、中文引号“”、中文冒号：），Python 只认英文标点。',
-      fix: '把这一行的中文标点换成英文的：( ) [ ] : , " \'',
-      sample: sample('print("你好，Python！")   # 括号和引号都要用英文的'),
-      extra: hasCnPunct(c.srcLine) ? '这一行里出现了中文标点，重点检查它们 👀' : '',
-    }),
+    make: (c) => {
+      const m = /invalid character '([^']+)'/.exec(c.msg);
+      const ch = m ? m[1] : '';
+      const cn = hasCnPunct(ch);
+      return {
+        title: cn ? `这里有个中文符号「${ch}」` : `Python 不认识「${ch}」这个符号`,
+        why: cn
+          ? `Python 原话是：第 ${c.lineno || '这'} 行有一个「${ch}」。这是中文标点，中文的（）：，“” 和英文的 ():,"" 长得像，但代码里只能用英文的。`
+          : `Python 原话是：第 ${c.lineno || '这'} 行有一个「${ch}」，这个符号不能写在 Python 代码里。`,
+        fix: cn
+          ? `把「${ch}」换成对应的英文符号：（ → (，） → )，： → :，，“” → ""，、 → ,`
+          : `把「${ch}」删掉，或者换成 Python 认识的符号。`,
+        sample: sample('print("你好，Python！")   # 括号、引号都用英文的\n# 中文标点只能写在引号里面，当作要显示的文字'),
+      };
+    },
   },
   {
     test: (c) => c.type === 'SyntaxError' && /unterminated string literal|EOL while scanning/.test(c.msg),
@@ -126,22 +134,97 @@ const RULES = [
     }),
   },
   {
-    test: (c) => c.type === 'SyntaxError' && hasCnPunct(c.srcLine),
+    // Python 原话：SyntaxError: '(' was never closed
+    test: (c) => c.type === 'SyntaxError' && /was never closed/.test(c.msg),
+    make: (c) => {
+      const m = /'([([{])' was never closed/.exec(c.msg);
+      const open = m ? m[1] : '(';
+      const close = { '(': ')', '[': ']', '{': '}' }[open] || ')';
+      return {
+        title: `这个「${open}」一直没有关上`,
+        why: `Python 一路读到最后，也没等到和它配对的「${close}」。`,
+        fix: `数一数这一行：开了几个「${open}」，就要关几个「${close}」。`,
+        sample: sample('print((1 + 1))   # 开了 2 个括号，就要关 2 个'),
+      };
+    },
+  },
+  {
+    // Python 原话：SyntaxError: expected ':'
+    test: (c) => c.type === 'SyntaxError' && /expected ':'/.test(c.msg),
+    make: (c) => {
+      const line = (c.srcLine || '').trim();
+      return {
+        title: '这一行末尾少了冒号 :',
+        why: 'if / elif / else / for / while / def 这些行的最后必须写一个英文冒号 :，Python 才知道下一行是跟着它的。',
+        fix: line ? `在这一行最后加上英文冒号：${line}:` : '在这一行最后加上英文冒号 :（要用英文的，别打成中文的：）',
+        sample: sample('for i in range(3):    # 结尾有冒号\n    print(i)           # 下一行缩进 4 格'),
+      };
+    },
+  },
+  {
+    // Python 原话：SyntaxError: invalid syntax. Maybe you meant '==' or ':=' instead of '='?
+    test: (c) => c.type === 'SyntaxError' && /meant '==' or ':=' instead of '='/.test(c.msg),
     make: () => ({
-      title: '这一行混进了中文标点',
-      why: '中文的（）：，“” 和英文的 ():,"" 长得像，但 Python 只认英文的。中文输入法下最容易打错。',
-      fix: '把中文标点一个个换成英文标点（写代码时切成英文输入法）。',
-      sample: sample('if score > 90:         # 大于号和冒号都要用英文符号\n    print("优秀")'),
+      title: '这里该用两个等号 ==',
+      why: '一个 = 是「把右边的值存进左边的盒子」，两个 == 才是「比较两边是不是相等」。if 后面是要判断，所以用 ==。',
+      fix: '把这里的 = 改成 ==。',
+      sample: sample('x = 5\nif x == 5:          # 比较用 ==，存值才用 =\n    print("x 是 5")'),
+    }),
+  },
+  {
+    // Python 原话：SyntaxError: invalid syntax. Perhaps you forgot a comma?
+    test: (c) => c.type === 'SyntaxError' && /Perhaps you forgot a comma/.test(c.msg),
+    make: (c) => {
+      const line = (c.srcLine || '').trim();
+      return {
+        title: '两个东西挨在一起，中间少了逗号',
+        why: 'Python 读到这一行的某个地方就接不下去了：两个内容直接挨着写，中间既没有逗号，也没有运算符号。',
+        fix: line
+          ? `看看这一行：${line} —— 是不是两个值（或两段文字）之间忘了写逗号 , ？`
+          : '看看是不是两个值之间忘了写逗号 ,',
+        sample: sample('print("总分", 100)      # 两个内容用逗号隔开\nnums = [1, 2, 3]        # 列表里的元素也要用逗号隔开'),
+      };
+    },
+  },
+
+  {
+    // Python 里根本没有 => 这种写法（别的语言或数学里才有）
+    test: (c) => c.type === 'SyntaxError' && /invalid syntax/.test(c.msg) && /=>/.test(c.srcLine || ''),
+    make: (c) => ({
+      title: 'Python 里没有 => 这种写法',
+      why: `Python 不认识 ${(c.srcLine || '').trim() || '这一行'} 里的 =>，这是别的语言（或数学）里的写法。`,
+      fix: '想把右边存进左边就用 =；想比较两边是不是相等就用 ==。',
+      sample: sample('x = 5          # 存值用 =\nif x == 5:     # 比较用 ==\n    print("x 是 5")'),
+    }),
+  },
+  {
+    // if ... : ... else ... 全写在一行：Python 只支持 if 后面跟一句，else 必须另起一行
+    test: (c) => c.type === 'SyntaxError' && /invalid syntax/.test(c.msg)
+      && /\belse\b/.test(c.srcLine || '') && /\b(if|elif)\b/.test(c.srcLine || ''),
+    make: () => ({
+      title: 'else 要另起一行写',
+      why: 'if 后面可以跟一句简单的代码，但 else 不能和它挤在同一行，必须另起一行、并且和 if 对齐。',
+      fix: '把 else 挪到下一行，和 if 的开头对齐，else 后面也别忘了冒号。',
+      sample: sample('if score >= 60:\n    print("及格")\nelse:                 # 另起一行，和 if 对齐\n    print("要加油")'),
     }),
   },
   {
     test: (c) => c.type === 'SyntaxError' && /invalid syntax/.test(c.msg),
-    make: (c) => ({
-      title: '这一行写得不像 Python',
-      why: 'Python 读不懂这一行，常见原因：括号没配对、冒号漏了、关键字拼错、或者不小心用了中文符号。',
-      fix: `对着这一行慢慢看：${(c.srcLine || '').trim() || '（这一行）'} —— 括号成对吗？if/for/while 后面有冒号吗？`,
-      sample: sample('for i in range(5):       # 结尾有冒号\n    print(i)              # 下一行缩进 4 格'),
-    }),
+    make: (c) => {
+      const line = (c.srcLine || '').trim();
+      const at = c.offset ? `Python 卡在第 ${c.lineno} 行第 ${c.offset} 个字符这里。` : '';
+      return {
+        title: '这一行写得不像 Python',
+        why: `Python 读到这儿就读不下去了。${at}常见原因：两个内容之间少了逗号、括号没配对、冒号漏了、或者关键字拼错。`,
+        fix: line
+          ? `对着这一行看：${line} —— 两个值之间有逗号吗？括号成对吗？if/for/while 后面有冒号吗？`
+          : '检查这一行：两个值之间有逗号吗？括号成对吗？if/for/while 后面有冒号吗？',
+        sample: sample('print("总分", 100)      # 两个内容用逗号隔开\nfor i in range(5):     # 结尾有冒号\n    print(i)           # 下一行缩进 4 格'),
+        extra: hasCnPunct(c.srcLine)
+          ? '顺带瞄一眼：这一行里有中文标点。不过这次报错的点未必在标点上（如果真是中文标点，Python 会单独报「不认识的符号」）。'
+          : '',
+      };
+    },
   },
   {
     test: (c) => c.type === 'SyntaxError',
@@ -201,18 +284,21 @@ const RULES = [
     make: (c) => {
       const m = /name '([^']+)' is not defined/.exec(c.msg);
       const name = m ? m[1] : '';
-      const near = guess(name);
-      const cnQuote = hasCnPunct(c.srcLine);
-      const why = cnQuote
-        ? '这一行用了中文引号，Python 会把里面的内容当成变量名，而不是文字。'
-        : '你用了一个 Python 还不认识的名字：可能是拼错了、大小写写错了，或者忘了先给它赋值。';
+      // Python 自己经常会给出提示：name 'pirnt' is not defined. Did you mean: 'print'?
+      // 有它就用它，比我们自己猜准
+      const hint = /Did you mean:\s*'?([^'?]+)'?/.exec(c.msg);
+      const near = (hint ? hint[1].trim() : '') || guess(name);
+      const why = '你用了一个 Python 还不认识的名字：可能是拼错了、大小写写错了，或者忘了先给它赋值。';
       const fix = near
-        ? `你是不是想写 ${near}？把 ${name} 改成 ${near} 试试（注意大小写要一模一样）。`
+        ? `Python 自己也在猜：你是不是想写 ${near}？把 ${name} 改成 ${near} 试试（大小写要一模一样）。`
         : `用之前先给它一个值，比如 ${name || '名字'} = 0；变量名也要检查拼写和大小写。`;
       return {
         title: `名字「${name}」还没定义`,
         why,
         fix,
+        extra: hasCnPunct(c.srcLine)
+          ? '（这一行里有中文标点。如果这段话本来是文字，记得给它加上英文引号，不然 Python 会当成变量名。）'
+          : '',
         sample: sample(near === 'input'
           ? 'name = input("你叫什么名字？")\nprint("你好，" + name)'
           : 'mingzi = "小明"        # 先给这个盒子一个值\nprint(mingzi)          # 再拿出来用'),
@@ -334,7 +420,8 @@ const RULES = [
   {
     test: (c) => c.type === 'KeyError',
     make: (c) => {
-      const m = /KeyError:\s*'?([^']*)'?/.exec(c.msg);
+      // 注意：c.msg 是 str(e)，只有 "'x'" 这种（不带 KeyError: 前缀）
+      const m = /'?([^']*)'?/.exec(String(c.msg || '').trim());
       const key = m ? m[1] : '';
       return {
         title: `字典里没有「${key}」这个键`,
@@ -452,6 +539,7 @@ export function explainError(err, code) {
     type: String((err && err.type) || ''),
     msg: String((err && err.message) || ''),
     lineno,
+    offset: Number(err && err.offset) || 0,
     srcLine,
     lines,
   };
