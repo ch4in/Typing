@@ -81,17 +81,43 @@ function rowsFromOut(outList) {
   return rows;
 }
 
-function drawShot({ code, outList, fileName, errLine }) {
+function drawShot({ code, outList, fileName, errLine, student }) {
   const measureCvs = document.createElement('canvas');
   const mctx = measureCvs.getContext('2d');
   mctx.font = CODE_FONT;
 
-  const codeAvail = SHOT_W - SHOT_PAD * 2 - SHOT_GUTTER;
-  const outAvail = SHOT_W - SHOT_PAD * 2 - 20;
+  // ---- 先量出内容真实需要的宽度：最宽的代码行 / 输出行决定画布宽度 ----
+  // （以前固定 1100 宽，代码短时右边一大块空白，贴到 Word 里又特别大）
+  const codeLines = tokenizeLines(String(code).replace(/\t/g, '    '));
+  const partsW = (parts) => parts.reduce((n, p) => n + mctx.measureText(p.text).width, 0);
+  let maxCodeW = 0;
+  codeLines.forEach((parts) => { maxCodeW = Math.max(maxCodeW, partsW(parts)); });
+  const outLogical = rowsFromOut(outList);
+  let maxOutW = 0;
+  outLogical.forEach((parts) => { maxOutW = Math.max(maxOutW, partsW(parts)); });
 
-  // ---- 先排好所有要画的内容，才能知道画布要多高 ----
+  // 宽度跟着内容走：最短 520（太短不好看），最长 1100（太长贴 Word 里还是大）
+  // 标题条右上角要放「学校 班级 姓名 ｜ 文件名」，也得给它留够地方
+  mctx.font = '16px system-ui, -apple-system, "Microsoft YaHei", sans-serif';
+  const whoW = student
+    ? mctx.measureText([student.schoolName, student.className, student.name].filter(Boolean).join(' ')).width
+    : 0;
+  mctx.font = 'bold 20px system-ui, -apple-system, "Microsoft YaHei", sans-serif';
+  const logoW = mctx.measureText('🐍 Python 编程').width;
+  mctx.font = '16px system-ui, -apple-system, "Microsoft YaHei", sans-serif';
+  const titleNeedW = SHOT_PAD * 2 + logoW + 30 + whoW + (whoW ? 20 : 0) + mctx.measureText(String(fileName || 'main.py')).width;
+  mctx.font = CODE_FONT;
+  const W = Math.max(520, Math.min(SHOT_W, Math.ceil(Math.max(
+    SHOT_PAD * 2 + SHOT_GUTTER + maxCodeW + 14,
+    SHOT_PAD * 2 + 20 + maxOutW + 14,
+    titleNeedW,
+  ))));
+  const codeAvail = W - SHOT_PAD * 2 - SHOT_GUTTER;
+  const outAvail = W - SHOT_PAD * 2 - 20;
+
+  // ---- 再按这个宽度排版，算出画布要多高 ----
   // 代码按语法切成小块上色，跟编辑器里看到的颜色一致
-  const codeBlocks = tokenizeLines(String(code).replace(/\t/g, '    ')).map((parts, idx) => ({
+  const codeBlocks = codeLines.map((parts, idx) => ({
     no: idx + 1,
     rows: wrapParts(
       mctx,
@@ -119,21 +145,21 @@ function drawShot({ code, outList, fileName, errLine }) {
   // ---- 开画 ----
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const cvs = document.createElement('canvas');
-  cvs.width = SHOT_W * dpr;
+  cvs.width = W * dpr;
   cvs.height = H * dpr;
   const ctx = cvs.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.textBaseline = 'middle';
 
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, SHOT_W, H);
+  ctx.fillRect(0, 0, W, H);
 
   // 顶部标题条
-  const grad = ctx.createLinearGradient(0, 0, SHOT_W, titleH);
+  const grad = ctx.createLinearGradient(0, 0, W, titleH);
   grad.addColorStop(0, '#45B7D1');
   grad.addColorStop(1, '#37a3bd');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, SHOT_W, titleH);
+  ctx.fillRect(0, 0, W, titleH);
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 20px system-ui, -apple-system, "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'left';
@@ -141,7 +167,12 @@ function drawShot({ code, outList, fileName, errLine }) {
   ctx.font = '16px system-ui, -apple-system, "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText(String(fileName || 'main.py'), SHOT_W - SHOT_PAD, titleH / 2);
+  // 右上角：学校 班级 姓名（在文件名的左边），方便老师收作业时一眼认出是谁的
+  const who = student
+    ? [student.schoolName, student.className, student.name].filter(Boolean).join(' ')
+    : '';
+  const titleRight = who ? `${who} ｜ ${fileName || 'main.py'}` : String(fileName || 'main.py');
+  ctx.fillText(titleRight, W - SHOT_PAD, titleH / 2);
   ctx.textAlign = 'left';
 
   // 代码区的标题
@@ -151,7 +182,7 @@ function drawShot({ code, outList, fileName, errLine }) {
 
   // 代码区背景 + 行号栏
   ctx.fillStyle = '#fbfcfd';
-  ctx.fillRect(0, codeTop, SHOT_W, codeH);
+  ctx.fillRect(0, codeTop, W, codeH);
   ctx.fillStyle = '#f1f3f5';
   ctx.fillRect(0, codeTop, SHOT_PAD + SHOT_GUTTER - 10, codeH);
   ctx.strokeStyle = '#e9ecef';
@@ -167,7 +198,7 @@ function drawShot({ code, outList, fileName, errLine }) {
       const cy = y + SHOT_LINE_H / 2;
       if (errLine && b.no === errLine) {
         ctx.fillStyle = 'rgba(255,107,107,0.12)';
-        ctx.fillRect(0, cy - SHOT_LINE_H / 2, SHOT_W, SHOT_LINE_H);
+        ctx.fillRect(0, cy - SHOT_LINE_H / 2, W, SHOT_LINE_H);
       }
       if (i === 0) {
         ctx.fillStyle = '#b2bec3';
@@ -192,9 +223,9 @@ function drawShot({ code, outList, fileName, errLine }) {
 
   // 运行结果区（深色，像真的终端）
   ctx.fillStyle = '#1b2027';
-  ctx.fillRect(0, outTop, SHOT_W, H - outTop);
+  ctx.fillRect(0, outTop, W, H - outTop);
   ctx.fillStyle = '#131920';
-  ctx.fillRect(0, outTop, SHOT_W, labelH);
+  ctx.fillRect(0, outTop, W, labelH);
   ctx.font = UI_FONT;
   ctx.fillStyle = '#dfe6eb';
   ctx.fillText('🖥️ 运行结果', SHOT_PAD, outTop + labelH / 2);
@@ -318,6 +349,7 @@ export default function PythonIdle() {
   const [shotTip, setShotTip] = useState('');
   const [copied, setCopied] = useState(false);
   const [bootMsg, setBootMsg] = useState('');
+  const [clearAsk, setClearAsk] = useState(false); // 清空代码的二次确认状态
 
   const codeRef = useRef(code);
   codeRef.current = code;
@@ -332,18 +364,56 @@ export default function PythonIdle() {
   const shotRef = useRef(null);
   const checkSeq = useRef(0); // 每发一次语法检查就 +1，防止旧结果盖掉新的
   const runningRef = useRef(false); // 正在运行/等输入时为 true，这段时间不查语法
+  const statusRef = useRef('idle'); // 给定时器看的最新状态（定时器里的 status 是旧的）
+  const stopTimer = useRef(null); // 30 秒还没跑完就自动停止（静默死循环）
+  const runOutRef = useRef({ lines: 0, chars: 0 }); // 本次运行的输出量，用来发现死循环刷屏
+  statusRef.current = status;
 
   // 输出一行行来，攒一小会儿再一起显示，免得刷得太快看不清
   const push = useCallback((line) => {
+    // 顺手统计这次运行输出了多少：死循环刷屏时靠它发现并自动停下
+    const r = runOutRef.current;
+    r.lines += 1;
+    r.chars += (line.text || '').length;
     bufRef.current.push(line);
     if (flushTimer.current) return;
     flushTimer.current = setTimeout(() => {
       flushTimer.current = null;
       const add = bufRef.current;
       bufRef.current = [];
-      setOut((prev) => prev.concat(add));
+      setOut((prev) => {
+        const next = prev.concat(add);
+        // 最多留 600 条：再多 React 每帧都要重画几千行，页面会被拖死
+        return next.length > 600 ? next.slice(next.length - 600) : next;
+      });
+      // 输出洪峰（比如 while True: print(...)）：直接掐掉，别让页面被冲垮
+      if (runningRef.current && (r.lines > 2000 || r.chars > 200000)) autoStop('flood');
     }, 80);
   }, []);
+
+  // 程序自己停不下来（死循环）时替学生点「停止」，并说清楚为什么
+  const autoStop = useCallback((why) => {
+    if (!runningRef.current) return;
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+    clearTimeout(slowTimer.current);
+    clearTimeout(stopTimer.current);
+    bufRef.current = [];
+    runningRef.current = false;
+    setSlow(false);
+    setWaitInput(false);
+    setWaitBatch(false);
+    setStatus('done');
+    if (why === 'flood') {
+      push({ kind: 'tip', text: '⏹ 程序一直在输出，已经帮你停下啦！\n' });
+      push({ kind: 'tip', text: '🔍 这多半是「死循环」：检查一下 while / for 循环里的条件有没有变化（比如循环里忘了 i = i + 1）～\n' });
+    } else {
+      push({ kind: 'tip', text: '⏹ 程序跑了 30 秒还没结束，已经帮你停下啦！\n' });
+      push({ kind: 'tip', text: '🔍 这多半是「死循环」：检查一下循环的条件是不是永远成立，循环里要记得改变条件哦～\n' });
+    }
+  }, [push]);
 
   const onMsg = useCallback((m) => {
     if (!m || !m.type) return;
@@ -364,6 +434,7 @@ export default function PythonIdle() {
       push({ kind: 'tip', text: '⌨️ 这个程序里函数用到了 input，请先把答案按顺序每行写好，再点「▶ 把答案给程序」：\n' });
     } else if (m.type === 'done') {
       clearTimeout(slowTimer.current);
+      clearTimeout(stopTimer.current);
       runningRef.current = false;
       setSlow(false);
       setWaitInput(false);
@@ -373,6 +444,7 @@ export default function PythonIdle() {
       if (m.stopped === 'exit') push({ kind: 'tip', text: '🏁 程序结束了\n' });
     } else if (m.type === 'error') {
       clearTimeout(slowTimer.current);
+      clearTimeout(stopTimer.current);
       runningRef.current = false;
       setSlow(false);
       setWaitInput(false);
@@ -384,6 +456,7 @@ export default function PythonIdle() {
       push({ kind: 'error', error: m.error });
     } else if (m.type === 'fatal') {
       clearTimeout(slowTimer.current);
+      clearTimeout(stopTimer.current);
       runningRef.current = false;
       setSlow(false);
       setWaitInput(false);
@@ -420,6 +493,7 @@ export default function PythonIdle() {
   const run = useCallback(() => {
     const w = ensureWorker();
     bufRef.current = [];
+    runOutRef.current = { lines: 0, chars: 0 };
     setOut([]);
     setErrLine(null);
     setLiveErr(null);
@@ -430,10 +504,15 @@ export default function PythonIdle() {
     setBootMsg('');
     runningRef.current = true;
     clearTimeout(slowTimer.current);
+    clearTimeout(stopTimer.current);
     // 跑太久就提醒一下：多半是 while 循环停不下来
     slowTimer.current = setTimeout(() => setSlow(true), 12000);
+    // 30 秒还没结束（也没在等输入）就当死循环，自动停下来
+    stopTimer.current = setTimeout(() => {
+      if (statusRef.current === 'run') autoStop('silent');
+    }, 30000);
     w.postMessage({ type: 'run', code: codeRef.current });
-  }, [ensureWorker]);
+  }, [ensureWorker, autoStop]);
 
   const stop = useCallback(() => {
     if (workerRef.current) {
@@ -441,6 +520,7 @@ export default function PythonIdle() {
       workerRef.current = null;
     }
     clearTimeout(slowTimer.current);
+    clearTimeout(stopTimer.current);
     bufRef.current = [];
     runningRef.current = false;
     setSlow(false);
@@ -453,6 +533,7 @@ export default function PythonIdle() {
   useEffect(() => () => {
     if (workerRef.current) workerRef.current.terminate();
     clearTimeout(slowTimer.current);
+    clearTimeout(stopTimer.current);
     clearTimeout(flushTimer.current);
     if (shotRef.current) URL.revokeObjectURL(shotRef.current);
   }, []);
@@ -469,7 +550,7 @@ export default function PythonIdle() {
 
   // 边写边查语法：停笔 0.7 秒就把代码发给 worker 编译一下（只编译不运行），
   // 有错就把出错行标红 + 画波浪线，跟真编辑器一样。第一次检查会顺带把
-  // Python 环境启动好，这样学生点「▶ 运行」时就是秒开。
+  // Python 环境在后台预热好，这样学生点「▶ 运行」时就是秒开。
   useEffect(() => {
     const t = setTimeout(() => {
       if (runningRef.current) return;
@@ -556,6 +637,19 @@ export default function PythonIdle() {
   // 语法错误的儿童友好版一句话提示（显示在编辑器底部）
   const liveHint = useMemo(() => (liveErr ? explainError(liveErr, codeRef.current) : null), [liveErr]);
 
+  // 清空代码：点第一下只是「询问」（3 秒内有效），再点一下才真正删掉，防止手滑误删
+  const clearCode = () => {
+    if (!clearAsk) {
+      setClearAsk(true);
+      setTimeout(() => setClearAsk(false), 3000);
+      return;
+    }
+    setClearAsk(false);
+    setCode('');
+    setErrLine(null);
+    setLiveErr(null);
+  };
+
   const download = () => {
     let f = String(fileName || 'main.py').trim() || 'main.py';
     if (!/\.py$/i.test(f)) f += '.py';
@@ -574,7 +668,7 @@ export default function PythonIdle() {
   // 把「代码 + 运行结果」画成一张图（ png 二进制数据）
   const shotBlob = () => new Promise((resolve, reject) => {
     try {
-      const cvs = drawShot({ code: codeRef.current, outList: out, fileName, errLine });
+      const cvs = drawShot({ code: codeRef.current, outList: out, fileName, errLine, student: user });
       cvs.toBlob((b) => { if (b) resolve(b); else reject(new Error('图片生成失败')); }, 'image/png');
     } catch (e) {
       reject(e);
@@ -595,30 +689,60 @@ export default function PythonIdle() {
     }
   };
 
-  // 老浏览器的兜底：选中图片再 execCommand('copy')
-  const copyImgLegacy = (url) => new Promise((resolve) => {
-    const img = document.createElement('img');
-    img.src = url;
-    img.onload = () => {
-      let ok = false;
-      try {
-        const holder = document.createElement('div');
-        holder.contentEditable = 'true';
-        holder.style.cssText = 'position:fixed;left:-99999px;top:0;';
-        holder.appendChild(img);
-        document.body.appendChild(holder);
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(holder);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        ok = document.execCommand('copy');
-        sel.removeAllRanges();
-        document.body.removeChild(holder);
-      } catch (e) { ok = false; }
+  // blob 转 dataURL（base64 直接嵌在字符串里，WPS/Word 不依赖浏览器环境就能读）
+  const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('图片编码失败'));
+    r.readAsDataURL(blob);
+  });
+
+  // 老办法复制：选中图片再 execCommand('copy')。
+  // 两个关键点（少一个 WPS 里贴出来就是空白）：
+  // 1. 剪贴板 HTML 里的图片必须用 data: 开头的 base64 地址——blob: 地址只在
+  //    浏览器里有效，WPS 拿到也读不出来；
+  // 2. 复制前要等图片真正解码、真正画到屏幕外容器里——不然复制出去的位图是空白的。
+  // 6 秒没反应就当失败，绝不能一直卡住（不然按钮点了像坏了一样）
+  const copyImgLegacy = (dataUrl) => new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       resolve(ok);
     };
-    img.onerror = () => resolve(false);
+    const timer = setTimeout(() => finish(false), 6000);
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    // 贴进 Word/WPS 时按这个宽度显示：14cm 正好是 A4 默认页边距下的正文宽度，
+    // 图片会跟着页面宽度走，不会一大张糊满整页
+    img.style.width = '14cm';
+    img.style.height = 'auto';
+    img.onload = () => {
+      (async () => {
+        try {
+          try { if (img.decode) await img.decode(); } catch (e) { /* 有的浏览器 decode 不了，继续 */ }
+          // 再等两帧，确保图片真的渲染出来了，位图才不是空的
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const holder = document.createElement('div');
+          holder.contentEditable = 'true';
+          holder.style.cssText = 'position:fixed;left:-99999px;top:0;';
+          holder.appendChild(img);
+          document.body.appendChild(holder);
+          holder.focus(); // 有些浏览器要先聚焦 contenteditable 才复制得出去
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(holder);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          const ok = document.execCommand('copy');
+          sel.removeAllRanges();
+          document.body.removeChild(holder);
+          finish(ok);
+        } catch (e) { finish(false); }
+      })();
+    };
+    img.onerror = () => finish(false);
   });
 
   // 复制结果：直接把截图放到剪贴板，回到 Word 里 Ctrl+V 就能贴上去
@@ -627,14 +751,20 @@ export default function PythonIdle() {
     try {
       const blob = await shotBlob();
       url = URL.createObjectURL(blob);
-      let ok = false;
-      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      const dataUrl = await blobToDataUrl(blob);
+      // 先用老办法（WPS 兼容最好），不行了再试 Edge 的新剪贴板 API
+      let ok = await copyImgLegacy(dataUrl);
+      if (!ok && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
         try {
-          await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
+          // 两种格式一起放：WPS/Word 读 HTML（图片内嵌 base64，宽度 14cm 适应页面），别的读 PNG
+          await navigator.clipboard.write([new window.ClipboardItem({
+            'image/png': blob,
+            'text/html': new Blob([`<img src="${dataUrl}" style="width:14cm;height:auto">`], { type: 'text/html' }),
+          })]);
           ok = true;
         } catch (e) { ok = false; }
       }
-      if (!ok) ok = await copyImgLegacy(url);
+      console.log('[copyShot] 复制结果 =', ok);
       if (ok) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2200);
@@ -706,10 +836,18 @@ export default function PythonIdle() {
             <button className="py-btn primary" onClick={run} disabled={status === 'run' || status === 'boot'}>
               ▶ 运行
             </button>
-            <button className="py-btn" onClick={stop} disabled={status === 'idle'}>⏹ 停止</button>
+            <button className={`py-btn${slow && status === 'run' ? ' danger pulse' : ''}`} onClick={stop} disabled={status === 'idle'}>⏹ 停止</button>
             <button className="py-btn" onClick={() => setShowSamples(true)}>📚 示例</button>
             <button className="py-btn" onClick={() => setShowCheat(true)}>❓ 小抄</button>
             <button className="py-btn" onClick={download}>⬇ 下载</button>
+            <button
+              className={`py-btn${clearAsk ? ' danger' : ''}`}
+              onClick={clearCode}
+              disabled={!code && !clearAsk}
+              title="把编辑器里的代码全部删掉"
+            >
+              {clearAsk ? '❗ 再点一下确认清空' : '🗑 清空'}
+            </button>
           </div>
 
           <div className="py-editor">
@@ -776,7 +914,7 @@ export default function PythonIdle() {
               : <span key={i} className={`py-line ${l.kind}`}>{l.text}</span>))}
             {slow && status === 'run' && (
               <span className="py-line tip">
-                {'\n'}⏳ 已经跑了 12 秒还没结束……是不是 while 循环忘了让条件变化（比如忘了 i = i + 1）？可以点「⏹ 停止」先停下来看看。
+                {'\n'}⏳ 已经跑了 12 秒还没结束……是不是 while 循环忘了让条件变化（比如忘了 i = i + 1）？可以点「⏹ 停止」先停下来看看；到 30 秒还没结束我会自动帮你停下。
               </span>
             )}
           </div>

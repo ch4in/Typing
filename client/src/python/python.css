@@ -108,6 +108,13 @@
 .py-status.error { color: #eb3b5a; }
 .py-status.wait { color: #0abde3; }
 .py-btn.ok { background: #eafaf1; border-color: #b8f0d4; color: #16a085; font-weight: 700; }
+.py-btn.danger { background: #fff0f3; border-color: #ffc2cf; color: #eb3b5a; font-weight: 700; }
+/* 程序跑了太久（多半是死循环）时，让「停止」按钮一闪一闪提醒学生点它 */
+.py-btn.pulse { animation: py-pulse 1s ease-in-out infinite; }
+@keyframes py-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(235, 59, 90, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(235, 59, 90, 0); }
+}
 
 /* ---------------- 编辑器 ---------------- */
 /* 结构：行号栏 + 编辑区。编辑区 = 底下的着色层（只显示颜色）+ 上面透明的
